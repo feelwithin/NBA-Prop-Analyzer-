@@ -70,9 +70,14 @@ def _weighted_mean_std(history, key, half_life=HALF_LIFE, recent_n=RECENT_N):
     return mean, max(weighted_std, plain_std), n
 
 
+MATCHUP_DAMPEN = 0.35  # mirrors prop_model.py — see its docstring for why
+
+
 def _defense_factor(team_position_stats, position, team_id, key):
     """team_position_stats[(team_id, position)] = {'sum': {...}, 'count': n}
-    Returns (factor, min_count_across_league) — factor clipped like prop_model."""
+    Returns (factor, min_count_across_league) — dampened + clipped like
+    prop_model._matchup_factor (the undamped version tested overconfident
+    in this exact script — see prop_model.py's docstring)."""
     team_entry = team_position_stats.get((team_id, position))
     if not team_entry or team_entry["count"] == 0:
         return 1.0, 0
@@ -89,7 +94,9 @@ def _defense_factor(team_position_stats, position, team_id, key):
     team_avg = team_entry["sum"][key] / team_entry["count"]
     if league_avg == 0:
         return 1.0, team_entry["count"]
-    factor = max(0.75, min(1.25, team_avg / league_avg))
+    raw_factor = team_avg / league_avg
+    dampened = 1 + MATCHUP_DAMPEN * (raw_factor - 1)
+    factor = max(0.85, min(1.15, dampened))
     return factor, team_entry["count"]
 
 

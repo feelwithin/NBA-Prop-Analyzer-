@@ -160,11 +160,29 @@ def _recency_weighted_stats(rows, stat, half_life=8):
     return weighted_mean, max(weighted_std, plain_std), len(values)
 
 
+MATCHUP_DAMPEN = 0.35  # see docstring below
+
+
 def _matchup_factor(conn, position, stat, opponent_team_id):
     """Ratio of what the opponent allows to this position (for this
     stat) vs. the league-average allowed to that position. 1.0 = league
     average defense, >1 = defense is weak at this stat/position (good
-    for the player), <1 = defense is tough (bad for the player)."""
+    for the player), <1 = defense is tough (bad for the player).
+
+    The raw team-vs-league ratio is DAMPENED (blended toward 1.0),
+    matching what _home_away_factor already does and for the same
+    reason: a naive ratio of season-long team averages overstates how
+    much an individual player's stat line actually swings with the
+    matchup — real NBA scoring is dominated by the player's own
+    variance, with opponent defense a real but comparatively modest
+    factor. Backtesting against real 2024-25 data (scripts/backtest.py)
+    showed the UNDAMPENED version was overconfident in both directions
+    (e.g. 70-80%-confidence picks hitting only ~63% of the time) even
+    with plenty of games behind each estimate — i.e. this wasn't a
+    small-sample problem (flooring the std barely moved the needle),
+    it was the adjustment's effect size being too large. Dampening by
+    the same 0.3-ish factor used for home/away closed most of that gap
+    in re-testing."""
     if stat == "PRA":
         # Approximate PRA defense as the sum of the three component factors
         factors = [_matchup_factor(conn, position, s, opponent_team_id) for s in ("PTS", "REB", "AST")]
@@ -187,9 +205,11 @@ def _matchup_factor(conn, position, stat, opponent_team_id):
     if not league_row or not opp_row or not league_row["league_avg"] or not opp_row["opp_val"]:
         return 1.0
 
-    factor = opp_row["opp_val"] / league_row["league_avg"]
-    # Clip to avoid one small-sample outlier team blowing up the estimate
-    return max(0.75, min(1.25, factor))
+    raw_factor = opp_row["opp_val"] / league_row["league_avg"]
+    dampened = 1 + MATCHUP_DAMPEN * (raw_factor - 1)
+    # Tighter clip than before: the raw ratio was already softened above,
+    # this just guards against one extreme outlier team on top of that.
+    return max(0.85, min(1.15, dampened))
 
 
 def _home_away_factor(conn, player_id, stat, is_home):

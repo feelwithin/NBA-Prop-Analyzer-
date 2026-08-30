@@ -82,6 +82,36 @@ perimeter defense will show up in `v_team_position_defense`'s Guard
 numbers), just not identity-of-defender-specific. See **Roadmap**
 below for the individual-matchup extension.
 
+## Validation: is it actually calibrated?
+
+A probability model is only useful if its numbers mean what they
+claim — a pick it rates "70%" should hit roughly 70% of the time
+across many picks, not just sound confident. `scripts/backtest.py`
+checks this directly and honestly:
+
+It replays every game in the loaded season in chronological order.
+For each game, it predicts using ONLY data strictly before that
+date — the player's trailing form and every team's position-defense
+stats are both computed from history-so-far, never from the future
+(a common backtesting mistake is leaking future information into a
+"prediction" of the past). Since real historical betting lines
+aren't available, each test uses the player's own trailing average
+as a synthetic "fair line" with over/under picked at random
+(seeded, reproducible) — this checks whether the model's confidence
+is well-calibrated in general, not whether a specific sportsbook's
+line is beatable.
+
+```bash
+python3 scripts/backtest.py
+```
+
+It reports a Brier score (lower is better, versus an "always guess
+50%" baseline) and a calibration table — predicted-probability
+buckets next to the actual hit rate in each bucket, which should
+track closely if the model is honest about its own confidence.
+Full per-pick results are also written to
+`data/output/backtest_results.csv`.
+
 ## Data
 
 - **Teams** are real (30 current NBA franchises, correct
@@ -168,13 +198,40 @@ nba-prop-analyzer/
 │   ├── load_db.py               # CSVs -> SQLite
 │   ├── prop_model.py            # the probability engine
 │   ├── cli.py                   # command-line interface
-│   └── fetch_data.py            # real data via nba_api (run locally)
+│   ├── fetch_data.py            # real data via nba_api (run locally)
+│   └── backtest.py              # point-in-time calibration backtest
 ├── tests/
 │   └── test_prop_model.py       # sanity checks on the engine
 ├── data/seed/                   # generated/fetched CSVs
 ├── requirements.txt
 └── README.md
 ```
+
+## Known limitation: a small remaining bias in the recency-weighted mean
+
+Backtesting against real 2024-25 data (see **Validation** above) went
+through two real rounds of fixes: flooring the std (modest effect —
+the effective sample size wasn't actually the bottleneck) and, more
+substantially, dampening the matchup-defense adjustment the same way
+the home/away adjustment already was (this closed most of the
+overconfidence gap: Brier score improved from 0.2491 to 0.2473, and
+the model no longer produces wildly overconfident extreme
+predictions).
+
+A smaller pattern remains: predictions below 50% run a few points low
+(actual outcomes hit more than predicted) while predictions above 50%
+run a few points high (actual outcomes hit less than predicted).
+Likely cause: the recency-weighted mean gives extra weight to a
+player's most recent games, and hot stretches tend to cool back
+toward a player's real season level ("regression to the mean") — the
+model corrects for this on the matchup/home-away multipliers but not
+on the base recency-weighted mean itself. The principled fix is to
+shrink the recency-weighted mean toward the season-long mean in
+proportion to sample size (an empirical-Bayes-style estimator, the
+same idea already used for the dampened adjustments), rather than
+hand-tuning another constant against a single backtest run — doing
+the latter risks overfitting the model to one dataset/season instead
+of actually improving it.
 
 ## Roadmap / possible extensions
 
@@ -187,9 +244,6 @@ nba-prop-analyzer/
 - **Better distribution fitting**: swap the normal-approximation for
   a distribution better suited to low-count stats (e.g. blocks,
   steals), such as a Poisson or Negative Binomial fit.
-- **Backtesting harness**: hold out recent games, run the model as
-  if it didn't know the outcome, and score calibration (do "70%"
-  picks actually hit ~70% of the time?).
 - **Simple web dashboard**: a small Flask/Streamlit front end over
   `prop_model.py` instead of the CLI.
 
