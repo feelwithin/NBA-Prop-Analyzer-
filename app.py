@@ -1,6 +1,8 @@
 """
 A simple web UI over the prop model — for sharing with people who
-don't want to use a terminal.
+don't want to use a terminal. Styled after a sportsbook-style prop
+picker (FanDuel-inspired): pill-style Over/Under buttons, a "slip"
+card that collects your picks, and player avatars.
 
 Run locally:
     pip install streamlit
@@ -12,8 +14,9 @@ Deploy for free (so a friend can just click a link):
 
 Branding: colors/theme live in .streamlit/config.toml (Streamlit's
 native theming — applies to every built-in widget automatically), and
-the logo is assets/logo.png. To rebrand, edit those two things; the
-layout code below doesn't hardcode colors.
+the logo is assets/logo.png. To rebrand, edit those two things and
+the ACCENT constant below; the layout code doesn't hardcode colors
+anywhere else.
 """
 import base64
 import subprocess
@@ -31,6 +34,7 @@ from prop_model import (  # noqa: E402
 )
 
 LOGO_PATH = ROOT / "assets" / "logo.png"
+ACCENT = "#1D6FFF"  # keep in sync with primaryColor in .streamlit/config.toml
 
 st.set_page_config(
     page_title="Nabil's Prop Analyzer",
@@ -38,26 +42,46 @@ st.set_page_config(
     layout="centered",
 )
 
-# A few small CSS touches that native theming doesn't cover: mobile
-# spacing, form inputs at >=16px (prevents iOS Safari auto-zooming
-# into a field on tap), and letting columns wrap instead of squeezing
-# on a narrow phone screen instead of stacking.
+# A few CSS touches native theming doesn't cover: pill-shaped buttons
+# (the FanDuel-style Over/Under toggles and slip actions), a "slip"
+# card look, and mobile spacing (16px form inputs prevent iOS Safari's
+# auto-zoom-on-focus; columns wrap instead of squeezing on a phone).
 st.markdown(
-    """
+    f"""
     <style>
-      .block-container { padding-top: 1.5rem; max-width: 760px; }
-      div[data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: 0.6rem; }
-      input, select, textarea { font-size: 16px !important; }
-      .section-title {
+      .block-container {{ padding-top: 1.5rem; max-width: 760px; }}
+      div[data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; gap: 0.6rem; }}
+      input, select, textarea {{ font-size: 16px !important; }}
+      .stButton > button {{
+          border-radius: 999px !important;
+          font-weight: 700 !important;
+          letter-spacing: 0.02em;
+      }}
+      .section-title {{
           font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em;
           text-transform: uppercase; opacity: 0.75;
-          border-left: 3px solid #FF7A1A; padding-left: 10px;
+          border-left: 3px solid {ACCENT}; padding-left: 10px;
           margin: 1.3rem 0 0.7rem 0;
-      }
-      .app-tagline { font-size: 0.92rem; opacity: 0.65; margin-top: -0.2rem; }
-      @media (max-width: 480px) {
-          .block-container { padding-left: 1rem; padding-right: 1rem; }
-      }
+      }}
+      .slip-title {{
+          font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em;
+          text-transform: uppercase; color: {ACCENT};
+          margin-bottom: 0.5rem;
+      }}
+      .app-tagline {{ font-size: 0.92rem; opacity: 0.65; margin-top: -0.2rem; }}
+      .avatar-wrap {{ position: relative; width: 40px; height: 40px; flex-shrink: 0; }}
+      .avatar-fallback {{
+          position: absolute; inset: 0; border-radius: 50%;
+          background: {ACCENT}; color: white; font-weight: 800; font-size: 0.8rem;
+          display: flex; align-items: center; justify-content: center;
+      }}
+      .avatar-img {{
+          position: absolute; inset: 0; width: 40px; height: 40px;
+          border-radius: 50%; object-fit: cover; background: transparent;
+      }}
+      @media (max-width: 480px) {{
+          .block-container {{ padding-left: 1rem; padding-right: 1rem; }}
+      }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -66,6 +90,32 @@ st.markdown(
 
 def section(title):
     st.markdown(f"<div class='section-title'>{title}</div>", unsafe_allow_html=True)
+
+
+def initials(name):
+    parts = [p for p in name.split() if p]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
+def avatar_html(player_id, name, size=40):
+    """A small circular avatar: tries the real NBA CDN headshot for this
+    player_id (works for real players fetched via fetch_data.py — that ID
+    is the NBA's own person ID), falling back to an initials badge if the
+    image 404s (always true for the synthetic demo dataset's fake IDs, or
+    a player without a published headshot). The onerror handler hides the
+    broken <img> so the fallback div underneath shows through — no JS
+    framework needed, just a plain HTML attribute."""
+    url = f"https://cdn.nba.com/headshots/nba/latest/1040x760/{player_id}.png"
+    return f"""
+    <div class="avatar-wrap" style="width:{size}px;height:{size}px;">
+      <div class="avatar-fallback" style="width:{size}px;height:{size}px;font-size:{size*0.4:.0f}px;">{initials(name)}</div>
+      <img class="avatar-img" style="width:{size}px;height:{size}px;" src="{url}" onerror="this.style.display='none'" />
+    </div>
+    """
 
 
 @st.cache_resource
@@ -84,7 +134,9 @@ def ensure_database():
 @st.cache_data
 def load_options():
     conn = _connect()
-    players = [r["full_name"] for r in conn.execute("SELECT full_name FROM players ORDER BY full_name")]
+    player_rows = conn.execute("SELECT player_id, full_name FROM players ORDER BY full_name").fetchall()
+    players = [r["full_name"] for r in player_rows]
+    player_id_by_name = {r["full_name"]: r["player_id"] for r in player_rows}
     teams = [
         (r["abbreviation"], r["team_name"])
         for r in conn.execute("SELECT abbreviation, team_name FROM teams ORDER BY team_name")
@@ -113,7 +165,7 @@ def load_options():
             season_map[abbr].sort()
 
     conn.close()
-    return players, teams, seasons, by_season_team
+    return players, player_id_by_name, teams, seasons, by_season_team
 
 
 def recent_games_control(label, key, default=20):
@@ -128,6 +180,30 @@ def recent_games_control(label, key, default=20):
     return st.slider(label, min_value=5, max_value=40, value=default, key=key)
 
 
+def direction_pills(leg, key_prefix):
+    """FanDuel-style OVER/UNDER toggle: two pill buttons, the selected
+    one filled solid (Streamlit's 'primary' button type, themed to
+    ACCENT), the other outlined ('secondary'). Clicking sets the leg's
+    direction and reruns immediately so the highlighted pill updates
+    in the same tap — same pattern already used for add/remove buttons
+    elsewhere on this page."""
+    c_over, c_under = st.columns(2)
+    with c_over:
+        if st.button(
+            "OVER", key=f"{key_prefix}_over", use_container_width=True,
+            type=("primary" if leg["direction"] == "over" else "secondary"),
+        ):
+            leg["direction"] = "over"
+            st.rerun()
+    with c_under:
+        if st.button(
+            "UNDER", key=f"{key_prefix}_under", use_container_width=True,
+            type=("primary" if leg["direction"] == "under" else "secondary"),
+        ):
+            leg["direction"] = "under"
+            st.rerun()
+
+
 def render_result(r):
     verdict = "LIKELY HIT" if r.probability >= 0.5 else "LIKELY MISS"
     verdict_color = "#2ECC71" if r.probability >= 0.5 else "#FF5C5C"
@@ -135,16 +211,21 @@ def render_result(r):
 
     st.markdown(
         f"""
-        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0.4rem;">
-          <div style="font-weight:700;font-size:1.05rem;">
-            {r.player_name} <span style="opacity:0.55;font-weight:400;">({r.season})</span>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.3rem;">
+          {avatar_html(r.player_id, r.player_name, size=44)}
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0.4rem;">
+              <div style="font-weight:700;font-size:1.05rem;">
+                {r.player_name} <span style="opacity:0.55;font-weight:400;">({r.season})</span>
+              </div>
+              <div style="color:{verdict_color};font-weight:700;font-size:0.85rem;letter-spacing:0.03em;">
+                {verdict}
+              </div>
+            </div>
+            <div style="opacity:0.7;font-size:0.9rem;">
+              {STAT_LABELS[r.stat]} {r.direction.upper()} {r.line} vs {r.opponent_abbr}
+            </div>
           </div>
-          <div style="color:{verdict_color};font-weight:700;font-size:0.85rem;letter-spacing:0.03em;">
-            {verdict}
-          </div>
-        </div>
-        <div style="opacity:0.7;font-size:0.9rem;margin-bottom:0.4rem;">
-          {STAT_LABELS[r.stat]} {r.direction.upper()} {r.line} vs {r.opponent_abbr}
         </div>
         """,
         unsafe_allow_html=True,
@@ -169,7 +250,7 @@ def render_result(r):
 
 
 ensure_database()
-players, teams, seasons, players_by_season_team = load_options()
+players, player_id_by_name, teams, seasons, players_by_season_team = load_options()
 team_labels = [f"{name} ({abbr})" for abbr, name in teams]
 team_abbr_by_label = {f"{name} ({abbr})": abbr for abbr, name in teams}
 
@@ -239,18 +320,30 @@ with tab_single:
     with col2:
         team_label = st.selectbox("Opponent", team_labels, index=None, placeholder="Pick a team...", key="single_opponent")
 
+    if player:
+        st.markdown(
+            f"""<div style="display:flex;align-items:center;gap:10px;margin:-0.3rem 0 0.6rem 0;">
+                  {avatar_html(player_id_by_name[player], player, size=32)}
+                  <span style="opacity:0.75;font-size:0.9rem;">{player}</span>
+                </div>""",
+            unsafe_allow_html=True,
+        )
+
     col3, col4 = st.columns(2)
     with col3:
         home_away = st.radio("Where's the game?", ["Not specified", "Home", "Away"], horizontal=True, key="single_home_away")
     with col4:
         recent_n = recent_games_control("Recent games to weight", key="single_recent_n")
 
-    section("Prop(s)")
+    section("Your slip")
     st.caption("Add one or more props for the same player/game — multiple legs are checked as a combo.")
 
-    for i, leg in enumerate(st.session_state.legs):
-        with st.container(border=True):
-            c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+    with st.container(border=True):
+        st.markdown(f"<div class='slip-title'>🎟️ {len(st.session_state.legs)} pick(s) on this slip</div>", unsafe_allow_html=True)
+        for i, leg in enumerate(st.session_state.legs):
+            if i > 0:
+                st.divider()
+            c1, c2 = st.columns([3, 2])
             with c1:
                 leg["stat"] = st.selectbox(
                     "Stat", list(STAT_LABELS), format_func=lambda s: STAT_LABELS[s],
@@ -258,24 +351,21 @@ with tab_single:
                 )
             with c2:
                 leg["line"] = st.number_input("Line", key=f"line_{i}", value=leg["line"], step=0.5)
-            with c3:
-                leg["direction"] = st.selectbox(
-                    "Direction", ["over", "under"], key=f"dir_{i}",
-                    index=["over", "under"].index(leg["direction"]),
-                )
-            with c4:
-                st.write("")  # vertical alignment spacer
-                if len(st.session_state.legs) > 1:
-                    if st.button("✕", key=f"remove_{i}", use_container_width=True):
-                        st.session_state.legs.pop(i)
-                        st.rerun()
+            direction_pills(leg, key_prefix=f"single_{i}")
+            if len(st.session_state.legs) > 1:
+                if st.button("Remove this leg", key=f"remove_{i}", use_container_width=True):
+                    st.session_state.legs.pop(i)
+                    st.rerun()
 
-    if st.button("+ Add another prop", key="add_prop"):
-        st.session_state.legs.append({"stat": "PTS", "line": 20.0, "direction": "over"})
-        st.rerun()
+        st.write("")
+        if st.button("+ Add another prop", key="add_prop", use_container_width=True):
+            st.session_state.legs.append({"stat": "PTS", "line": 20.0, "direction": "over"})
+            st.rerun()
 
-    st.write("")
-    if st.button("Check pick(s)", type="primary", use_container_width=True, key="check_single"):
+        st.write("")
+        submitted_single = st.button("Check pick(s)", type="primary", use_container_width=True, key="check_single")
+
+    if submitted_single:
         if not player or not team_label:
             st.warning("Pick a player and an opponent first.")
         else:
@@ -345,18 +435,29 @@ with tab_sgp:
         if narrowed:
             sgp_player_options = narrowed
 
-    section("Legs — add a player from either team")
+    section("Your slip")
+    st.caption("Add players from either roster — mix and match for the parlay.")
 
-    for i, leg in enumerate(st.session_state.sgp_legs):
-        with st.container(border=True):
-            c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
-            with c1:
-                leg["player"] = st.selectbox(
-                    "Player", sgp_player_options,
-                    index=(sgp_player_options.index(leg["player"]) if leg["player"] in sgp_player_options else None),
-                    placeholder="Type to search..." if sgp_player_options is not players else "Pick both teams first...",
-                    key=f"sgp_player_{i}",
+    with st.container(border=True):
+        st.markdown(f"<div class='slip-title'>🎟️ {len(st.session_state.sgp_legs)} pick(s) on this slip</div>", unsafe_allow_html=True)
+        for i, leg in enumerate(st.session_state.sgp_legs):
+            if i > 0:
+                st.divider()
+            leg["player"] = st.selectbox(
+                "Player", sgp_player_options,
+                index=(sgp_player_options.index(leg["player"]) if leg["player"] in sgp_player_options else None),
+                placeholder="Type to search..." if sgp_player_options is not players else "Pick both teams first...",
+                key=f"sgp_player_{i}",
+            )
+            if leg["player"]:
+                st.markdown(
+                    f"""<div style="display:flex;align-items:center;gap:10px;margin:-0.3rem 0 0.5rem 0;">
+                          {avatar_html(player_id_by_name[leg['player']], leg['player'], size=32)}
+                          <span style="opacity:0.75;font-size:0.9rem;">{leg['player']}</span>
+                        </div>""",
+                    unsafe_allow_html=True,
                 )
+            c2, c3 = st.columns(2)
             with c2:
                 leg["stat"] = st.selectbox(
                     "Stat", list(STAT_LABELS), format_func=lambda s: STAT_LABELS[s],
@@ -364,22 +465,21 @@ with tab_sgp:
                 )
             with c3:
                 leg["line"] = st.number_input("Line", key=f"sgp_line_{i}", value=leg["line"], step=0.5)
-            with c4:
-                leg["direction"] = st.selectbox(
-                    "Direction", ["over", "under"], key=f"sgp_dir_{i}",
-                    index=["over", "under"].index(leg["direction"]),
-                )
+            direction_pills(leg, key_prefix=f"sgp_{i}")
             if len(st.session_state.sgp_legs) > 1:
                 if st.button("Remove this leg", key=f"sgp_remove_{i}", use_container_width=True):
                     st.session_state.sgp_legs.pop(i)
                     st.rerun()
 
-    if st.button("+ Add another player/prop", key="sgp_add_leg"):
-        st.session_state.sgp_legs.append({"player": None, "stat": "PTS", "line": 20.0, "direction": "over"})
-        st.rerun()
+        st.write("")
+        if st.button("+ Add another player/prop", key="sgp_add_leg", use_container_width=True):
+            st.session_state.sgp_legs.append({"player": None, "stat": "PTS", "line": 20.0, "direction": "over"})
+            st.rerun()
 
-    st.write("")
-    if st.button("Check same-game parlay", type="primary", use_container_width=True, key="check_sgp"):
+        st.write("")
+        submitted_sgp = st.button("Check same-game parlay", type="primary", use_container_width=True, key="check_sgp")
+
+    if submitted_sgp:
         if not team_a_label or not team_b_label:
             st.warning("Pick both teams first.")
         elif team_a_label == team_b_label:

@@ -285,17 +285,29 @@ names aren't real NBA players.
 
 ### Look and feel
 
-The app has a branded dark theme (navy/orange) and a logo, plus a
-couple of UX touches aimed at actually using it on a phone: player
-dropdowns narrow to just the relevant team's roster once you've
-picked a team (instead of scrolling ~600 names), and "recent games
-to weight" is a row of tappable presets instead of a slider.
+The app has a sportsbook-style look (FanDuel-inspired), branded dark
+navy/blue with a logo:
+- **Pill-style OVER/UNDER buttons** instead of a dropdown — tap one
+  to select that direction, matching the highlighted-pill pattern
+  from betting-slip UIs.
+- **A "slip" card** groups your prop legs together with a running
+  pick count, instead of a bare form.
+- **Player avatars**: a real headshot for players fetched via
+  `fetch_data.py` (pulled from the NBA's own CDN using their real
+  player ID — nothing to configure), falling back to an initials
+  badge for the synthetic demo dataset or any player without a
+  published photo.
+- Player dropdowns narrow to just the relevant team's roster once
+  you've picked a team (instead of scrolling ~600 names), and
+  "recent games to weight" is a row of tappable presets instead of
+  a slider — both aimed at actually being usable on a phone.
 
 To rebrand it as your own:
-- **Colors/fonts**: edit `.streamlit/config.toml` — this is
-  Streamlit's native theming, so it applies consistently to every
-  widget (buttons, tabs, sliders, metrics) without touching any
-  Python code.
+- **Colors/fonts**: edit `.streamlit/config.toml` (native Streamlit
+  theming — applies to every widget) and the `ACCENT` constant near
+  the top of `app.py` (used by the custom CSS for the section
+  headers, slip title, and avatar fallback color) — keep the two in
+  sync.
 - **Logo**: replace `assets/logo.png` with your own square image
   (used as both the browser-tab favicon and the header mark) — any
   size works, it's resized automatically.

@@ -43,6 +43,7 @@ STAT_COLUMNS = {
 @dataclass
 class PropResult:
     player_name: str
+    player_id: int
     season: str
     stat: str
     line: float
@@ -362,6 +363,7 @@ def estimate_prop_probability(
 
         return PropResult(
             player_name=player["full_name"],
+            player_id=player["player_id"],
             season=season,
             stat=stat,
             line=line,
