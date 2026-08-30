@@ -141,8 +141,13 @@ def fetch_games_and_logs(season, season_type, sleep_s):
         numeric_game_ids[game_id] = i
         game_rows.append((i, g["date"], season, g["home_team_id"], g["away_team_id"], g["home_score"], g["away_score"]))
 
-    # Build player_game_logs.csv
+    # Build player_game_logs.csv. Also track every (player_id -> name, team_id)
+    # seen here — the roster snapshot (CommonTeamRoster) can miss players who
+    # only briefly appeared that season (10-day contracts, call-ups, players
+    # who changed teams), and any such gap would violate the players<-logs
+    # foreign key later. main() backfills those from this dict.
     log_rows = []
+    players_seen = {}
     for log_id, (_, r) in enumerate(player_df.iterrows(), start=1):
         game_id = r["GAME_ID"]
         if game_id not in numeric_game_ids:
@@ -151,6 +156,8 @@ def fetch_games_and_logs(season, season_type, sleep_s):
         team_id = int(r["TEAM_ID"])
         is_home = 1 if team_id == g.get("home_team_id") else 0
         opponent_team_id = g["away_team_id"] if is_home else g["home_team_id"]
+        player_id = int(r["PLAYER_ID"])
+        players_seen[player_id] = (r["PLAYER_NAME"], team_id)
 
         def num(col, default=0):
             val = r.get(col)
@@ -160,13 +167,13 @@ def fetch_games_and_logs(season, season_type, sleep_s):
                 return default
 
         log_rows.append((
-            log_id, numeric_game_ids[game_id], g["date"], int(r["PLAYER_ID"]), team_id,
+            log_id, numeric_game_ids[game_id], g["date"], player_id, team_id,
             opponent_team_id, is_home, num("MIN"), num("PTS"), num("REB"), num("AST"),
             num("STL"), num("BLK"), num("TOV"), num("FGM"), num("FGA"),
             num("FG3M"), num("FG3A"), num("FTM"), num("FTA"),
         ))
 
-    return game_rows, log_rows
+    return game_rows, log_rows, players_seen
 
 
 def write_csv(path, header, rows):
@@ -195,13 +202,29 @@ def main():
 
     print("Fetching rosters (30 calls, this takes a bit)...")
     player_rows = fetch_rosters(team_rows, args.season, args.sleep)
-    write_csv(SEED_DIR / "players.csv",
-              ["player_id", "full_name", "team_id", "position", "role"], player_rows)
 
     print("Fetching season game logs...")
-    game_rows, log_rows = fetch_games_and_logs(args.season, args.season_type, args.sleep)
+    game_rows, log_rows, players_seen = fetch_games_and_logs(args.season, args.season_type, args.sleep)
     write_csv(SEED_DIR / "games.csv",
               ["game_id", "game_date", "season", "home_team_id", "away_team_id", "home_score", "away_score"], game_rows)
+
+    # Backfill any player who has box-score rows but wasn't on the roster
+    # snapshot (call-ups, 10-day contracts, mid-season signings) — otherwise
+    # their game log rows would violate the players<-logs foreign key and
+    # load_db.py would refuse to load ANY data. Position is unknown for
+    # these, so default to 'F' (documented, not guessed silently).
+    known_ids = {p[0] for p in player_rows}
+    backfilled = 0
+    for player_id, (name, team_id) in players_seen.items():
+        if player_id not in known_ids:
+            player_rows.append((player_id, name, team_id, "F", "starter"))
+            backfilled += 1
+    if backfilled:
+        print(f"  backfilled {backfilled} player(s) missing from roster snapshots "
+              f"(position defaulted to 'F' — likely call-ups/trades)")
+
+    write_csv(SEED_DIR / "players.csv",
+              ["player_id", "full_name", "team_id", "position", "role"], player_rows)
     write_csv(SEED_DIR / "player_game_logs.csv",
               ["log_id", "game_id", "game_date", "player_id", "team_id", "opponent_team_id", "is_home",
                "minutes", "points", "rebounds", "assists", "steals", "blocks", "turnovers",
