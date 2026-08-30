@@ -2,6 +2,10 @@
 # uses only the Python standard library — nothing to install to run
 # the demo end-to-end.
 
+# Needed for app.py (the web UI) and for deploying it, e.g. on
+# Streamlit Community Cloud:
+streamlit>=1.30.0
+
 # Only needed for scripts/fetch_data.py (pulling real live NBA data):
 # nba_api>=1.4.1
 # pandas>=2.0.0

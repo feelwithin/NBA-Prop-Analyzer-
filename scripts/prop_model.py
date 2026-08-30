@@ -23,6 +23,7 @@ guarantee — see README for the full disclaimer.
 """
 import math
 import sqlite3
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -81,21 +82,41 @@ def _find_player(conn, name_or_id):
         ).fetchone()
         if row:
             return row
+
     row = conn.execute(
         "SELECT * FROM players WHERE full_name = ?", (name_or_id,)
     ).fetchone()
     if row:
         return row
-    # fuzzy fallback: case-insensitive substring match
-    rows = conn.execute(
-        "SELECT * FROM players WHERE full_name LIKE ? COLLATE NOCASE",
-        (f"%{name_or_id}%",),
-    ).fetchall()
-    if len(rows) == 1:
-        return rows[0]
-    if len(rows) > 1:
-        names = ", ".join(r["full_name"] for r in rows)
+
+    # Accent-insensitive matching: real NBA data has names like "Nikola
+    # Jokić", "Luka Dončić", "Alperen Şengün" — typing the plain-ASCII
+    # spelling ("Jokic") should still find them. Matching is done in
+    # Python over the (small, ~500-row) players table rather than in
+    # SQL, since SQLite has no built-in accent folding.
+    def strip_accents(s):
+        return "".join(
+            c for c in unicodedata.normalize("NFKD", s)
+            if not unicodedata.combining(c)
+        ).lower()
+
+    query_norm = strip_accents(name_or_id)
+    all_players = conn.execute("SELECT * FROM players").fetchall()
+
+    exact = [r for r in all_players if strip_accents(r["full_name"]) == query_norm]
+    if len(exact) == 1:
+        return exact[0]
+    if len(exact) > 1:
+        names = ", ".join(r["full_name"] for r in exact)
         raise ValueError(f"Multiple players match '{name_or_id}': {names}")
+
+    substring = [r for r in all_players if query_norm in strip_accents(r["full_name"])]
+    if len(substring) == 1:
+        return substring[0]
+    if len(substring) > 1:
+        names = ", ".join(r["full_name"] for r in substring)
+        raise ValueError(f"Multiple players match '{name_or_id}': {names}")
+
     raise ValueError(f"No player found matching '{name_or_id}'")
 
 

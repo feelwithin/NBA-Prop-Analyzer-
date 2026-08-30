@@ -169,6 +169,35 @@ for row in conn.execute('SELECT * FROM v_team_defense_rating ORDER BY defense_pe
 "
 ```
 
+## Share it with a friend (no coding required)
+
+`app.py` is a simple web UI over the same model — dropdowns instead
+of command-line flags. Two ways to use it:
+
+**Just for you, running locally:**
+```bash
+pip install streamlit
+streamlit run app.py
+```
+Opens in your browser at `localhost:8501`.
+
+**A link you can send someone (free, no server to manage):**
+1. Push this repo to GitHub (see below if you haven't already).
+2. Go to [share.streamlit.io](https://share.streamlit.io), sign in
+   with GitHub, click **New app**, and point it at this repo —
+   main file path `app.py`.
+3. Click **Deploy**. Streamlit Community Cloud builds and hosts it
+   for free, and gives you a public URL like
+   `https://your-app-name.streamlit.app` — send that to your friend
+   and they can use it from a phone or laptop, no installs needed.
+
+This only works if `data/seed/*.csv` is committed to the repo (it is
+by default — see **Data** below) — the app builds its database from
+those files the first time it starts. If you fetched real data with
+`scripts/fetch_data.py`, that's what your friend will see; if you're
+still on the synthetic demo data, mention that so they know the
+names aren't real NBA players.
+
 ## Schema
 
 ```
@@ -203,6 +232,7 @@ nba-prop-analyzer/
 ├── tests/
 │   └── test_prop_model.py       # sanity checks on the engine
 ├── data/seed/                   # generated/fetched CSVs
+├── app.py                       # web UI (Streamlit) — see "Share it with a friend"
 ├── requirements.txt
 └── README.md
 ```
@@ -244,8 +274,6 @@ of actually improving it.
 - **Better distribution fitting**: swap the normal-approximation for
   a distribution better suited to low-count stats (e.g. blocks,
   steals), such as a Poisson or Negative Binomial fit.
-- **Simple web dashboard**: a small Flask/Streamlit front end over
-  `prop_model.py` instead of the CLI.
 
 ## Skills demonstrated
 
