@@ -1,7 +1,7 @@
 """
 Generate a reproducible SYNTHETIC demo dataset for the NBA Prop
 Analyzer, so the whole pipeline (schema, feature views, prop model,
-CLI) is runnable and testable with zero setup.
+CLI, app) is runnable and testable with zero setup.
 
 - Teams are REAL (30 current franchises, correct conference/division).
 - Players, games, and box scores are SIMULATED. Crucially, each
@@ -11,6 +11,11 @@ CLI) is runnable and testable with zero setup.
   "tougher defense suppresses stats" matchup effects for the prop
   model to detect and react to. This makes it a legitimate test of
   the model's matchup-adjustment logic, not just noise.
+- Generates TWO seasons so multi-season support (see fetch_data.py
+  --append and app.py's season picker) has something real to test
+  against: a "prior" season and a "current" season, with a handful
+  of brand-new players only in the current season (simulating
+  rookies who weren't in the league yet during the prior one).
 
 For real players (e.g. Shai Gilgeous-Alexander) and real matchup
 effects, use scripts/fetch_data.py instead (requires internet).
@@ -29,7 +34,8 @@ ROOT = Path(__file__).resolve().parent.parent
 SEED_DIR = ROOT / "data" / "seed"
 SEED_DIR.mkdir(parents=True, exist_ok=True)
 
-SEASON = "2025-26"
+SEASONS = ["2024-25", "2025-26"]  # [prior, current]
+ROOKIES_PER_SEASON_B = 15  # league-wide, simulating a draft class
 
 TEAMS = [
     (1, "Celtics", "BOS", "Boston", "East", "Atlantic"),
@@ -92,6 +98,16 @@ ROLE_PROFILES = {
                    blk=(0.2, 0.2), tov=(0.7, 0.5), min=(12, 5)),
 }
 
+_used_names = set()
+
+
+def _new_name():
+    while True:
+        name = f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}"
+        if name not in _used_names:
+            _used_names.add(name)
+            return name
+
 
 def build_role_list():
     roles = []
@@ -100,28 +116,39 @@ def build_role_list():
     return roles
 
 
-def generate_players():
+def generate_players(start_id=1):
     players = []
-    player_id = 1
-    used_names = set()
+    player_id = start_id
     for team_id, *_ in TEAMS:
         for role in build_role_list():
-            while True:
-                name = f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}"
-                if name not in used_names:
-                    used_names.add(name)
-                    break
             position = random.choice(POSITIONS)
-            players.append((player_id, name, team_id, position, role))
+            players.append((player_id, _new_name(), team_id, position, role))
             player_id += 1
-    return players
+    return players, player_id
+
+
+def generate_rookies(start_id, count):
+    """A handful of brand-new players, only added for the 'current'
+    season — simulates a draft class that didn't exist in the prior
+    season's data at all."""
+    rookies = []
+    player_id = start_id
+    for _ in range(count):
+        team_id = random.choice(TEAMS)[0]
+        position = random.choice(POSITIONS)
+        role = random.choice(["starter", "bench"])  # rookies rarely start as "star" role
+        rookies.append((player_id, _new_name(), team_id, position, role))
+        player_id += 1
+    return rookies, player_id
 
 
 def generate_team_defense_factors():
     """Each team gets a per-position defensive multiplier around 1.0.
     < 1.0 = suppresses that position's stats (tough defense);
     > 1.0 = gives up more than average (weak defense).
-    Drawn from a realistic NBA-like spread (~15% std dev)."""
+    Drawn from a realistic NBA-like spread (~15% std dev). Regenerated
+    per season so a team's defensive strength can plausibly differ
+    year to year, same as in reality."""
     factors = {}
     for team_id, *_ in TEAMS:
         factors[team_id] = {
@@ -135,9 +162,11 @@ def sample_positive_int(mean, sd, lo=0):
     return max(lo, round(random.gauss(mean, sd)))
 
 
-def generate_schedule(games_per_team=25):
+def generate_schedule(season, season_index, games_per_team=25):
     """Round-based random schedule; always terminates (even team count
-    means every team gets paired each round it still needs games)."""
+    means every team gets paired each round it still needs games).
+    game_id is prefixed with the season so IDs never collide across
+    seasons when merged into one games.csv."""
     team_ids = [t[0] for t in TEAMS]
     counts = {tid: 0 for tid in team_ids}
     matchup_pool = []
@@ -153,26 +182,27 @@ def generate_schedule(games_per_team=25):
             counts[home] += 1
             counts[away] += 1
 
+    season_tag = season.replace("-", "")
     games = []
-    game_id = 1
+    start_year = int(season.split("-")[0])
     start_month, start_day = 10, 22
     for i, (home, away) in enumerate(matchup_pool):
+        game_id = f"SYN{season_tag}-{i:05d}"
         day_offset = i // 6
         month = start_month + (start_day + day_offset - 1) // 28
         day = (start_day + day_offset - 1) % 28 + 1
-        game_date = f"2025-{month:02d}-{day:02d}" if month <= 12 else f"2026-{month-12:02d}-{day:02d}"
-        games.append((game_id, game_date, SEASON, home, away))
-        game_id += 1
+        year = start_year if month <= 12 else start_year + 1
+        month = month if month <= 12 else month - 12
+        game_date = f"{year}-{month:02d}-{day:02d}"
+        games.append((game_id, game_date, season, home, away))
     return games
 
 
-def simulate_game(game, players_by_team, defense_factors, next_log_id):
+def simulate_game(game, players_by_team, defense_factors):
     game_id, game_date, season, home_id, away_id = game
-    log_id = next_log_id
     all_logs = []
 
     def play_team(team_id, opponent_id):
-        nonlocal log_id
         team_players = players_by_team[team_id]
         opp_def = defense_factors[opponent_id]
         active = [p for p in team_players if p[4] != "bench"]
@@ -198,38 +228,45 @@ def simulate_game(game, players_by_team, defense_factors, next_log_id):
             ftm = min(fta, max(0, round(fta * random.uniform(0.65, 0.9))))
             team_points += pts
             is_home = 1 if team_id == home_id else 0
+            log_id = f"{game_id}_{player_id}"
             rows.append((
-                log_id, game_id, game_date, player_id, tid, opponent_id, is_home,
+                log_id, game_id, game_date, season, player_id, tid, opponent_id, is_home,
                 minutes, pts, reb, ast, stl, blk, tov, fgm, fga, three_m, three_a, ftm, fta
             ))
-            log_id += 1
         return team_points, rows
 
     home_points, home_rows = play_team(home_id, away_id)
     away_points, away_rows = play_team(away_id, home_id)
     all_logs = home_rows + away_rows
     finalized_game = (game_id, game_date, season, home_id, away_id, home_points, away_points)
-    return finalized_game, all_logs, log_id
+    return finalized_game, all_logs
 
 
 def main():
-    players = generate_players()
-    players_by_team = {}
-    for p in players:
-        players_by_team.setdefault(p[2], []).append(p)
+    season_a, season_b = SEASONS
 
-    defense_factors = generate_team_defense_factors()
-    schedule = generate_schedule(games_per_team=25)
+    base_players, next_id = generate_players(start_id=1)
+    rookies, next_id = generate_rookies(next_id, ROOKIES_PER_SEASON_B)
+    all_players = base_players + rookies  # players.csv holds everyone ever seen, like a real merged fetch
 
-    final_games = []
-    all_logs = []
-    next_log_id = 1
-    for game in schedule:
-        finalized_game, logs, next_log_id = simulate_game(
-            game, players_by_team, defense_factors, next_log_id
-        )
-        final_games.append(finalized_game)
-        all_logs.extend(logs)
+    players_by_team_a = {}
+    for p in base_players:
+        players_by_team_a.setdefault(p[2], []).append(p)
+
+    players_by_team_b = {}
+    for p in base_players + rookies:
+        players_by_team_b.setdefault(p[2], []).append(p)
+
+    all_games, all_logs = [], []
+    for season_index, (season, players_by_team) in enumerate(
+        [(season_a, players_by_team_a), (season_b, players_by_team_b)]
+    ):
+        defense_factors = generate_team_defense_factors()
+        schedule = generate_schedule(season, season_index, games_per_team=25)
+        for game in schedule:
+            finalized_game, logs = simulate_game(game, players_by_team, defense_factors)
+            all_games.append(finalized_game)
+            all_logs.extend(logs)
 
     with open(SEED_DIR / "teams.csv", "w", newline="") as f:
         w = csv.writer(f)
@@ -239,25 +276,26 @@ def main():
     with open(SEED_DIR / "players.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["player_id", "full_name", "team_id", "position", "role"])
-        w.writerows(players)
+        w.writerows(all_players)
 
     with open(SEED_DIR / "games.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["game_id", "game_date", "season", "home_team_id", "away_team_id", "home_score", "away_score"])
-        w.writerows(final_games)
+        w.writerows(all_games)
 
     with open(SEED_DIR / "player_game_logs.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow([
-            "log_id", "game_id", "game_date", "player_id", "team_id", "opponent_team_id",
+            "log_id", "game_id", "game_date", "season", "player_id", "team_id", "opponent_team_id",
             "is_home", "minutes", "points", "rebounds", "assists", "steals", "blocks",
             "turnovers", "fg_made", "fg_attempted", "three_made", "three_attempted",
             "ft_made", "ft_attempted",
         ])
         w.writerows(all_logs)
 
-    print(f"Generated {len(TEAMS)} teams, {len(players)} players, "
-          f"{len(final_games)} games, {len(all_logs)} box-score log rows.")
+    print(f"Generated {len(TEAMS)} teams, {len(all_players)} players "
+          f"({len(rookies)} rookies added only in {season_b}), "
+          f"{len(all_games)} games across {len(SEASONS)} seasons, {len(all_logs)} box-score log rows.")
     print(f"CSVs written to {SEED_DIR}")
 
 

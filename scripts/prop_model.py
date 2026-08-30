@@ -43,6 +43,7 @@ STAT_COLUMNS = {
 @dataclass
 class PropResult:
     player_name: str
+    season: str
     stat: str
     line: float
     direction: str
@@ -120,6 +121,26 @@ def _find_player(conn, name_or_id):
     raise ValueError(f"No player found matching '{name_or_id}'")
 
 
+def list_seasons(conn):
+    """All seasons present in the DB, most recent first (string-sorted,
+    which works for the 'YYYY-YY' format e.g. '2024-25' < '2025-26')."""
+    rows = conn.execute("SELECT DISTINCT season FROM player_game_logs ORDER BY season DESC").fetchall()
+    return [r["season"] for r in rows]
+
+
+def _resolve_season(conn, season):
+    """None -> most recent season in the DB. Otherwise validates the
+    season exists and returns it as-is."""
+    seasons = list_seasons(conn)
+    if not seasons:
+        raise ValueError("No data loaded — has scripts/load_db.py been run?")
+    if season is None:
+        return seasons[0]
+    if season not in seasons:
+        raise ValueError(f"No data for season '{season}'. Available: {', '.join(seasons)}")
+    return season
+
+
 def _find_team(conn, abbr_or_name):
     row = conn.execute(
         "SELECT * FROM teams WHERE abbreviation = ? COLLATE NOCASE", (abbr_or_name,)
@@ -184,7 +205,7 @@ def _recency_weighted_stats(rows, stat, half_life=8):
 MATCHUP_DAMPEN = 0.35  # see docstring below
 
 
-def _matchup_factor(conn, position, stat, opponent_team_id):
+def _matchup_factor(conn, position, stat, opponent_team_id, season):
     """Ratio of what the opponent allows to this position (for this
     stat) vs. the league-average allowed to that position. 1.0 = league
     average defense, >1 = defense is weak at this stat/position (good
@@ -206,7 +227,7 @@ def _matchup_factor(conn, position, stat, opponent_team_id):
     in re-testing."""
     if stat == "PRA":
         # Approximate PRA defense as the sum of the three component factors
-        factors = [_matchup_factor(conn, position, s, opponent_team_id) for s in ("PTS", "REB", "AST")]
+        factors = [_matchup_factor(conn, position, s, opponent_team_id, season) for s in ("PTS", "REB", "AST")]
         return sum(factors) / len(factors)
 
     col_map = {"PTS": "avg_points_allowed", "REB": "avg_rebounds_allowed", "AST": "avg_assists_allowed"}
@@ -215,12 +236,12 @@ def _matchup_factor(conn, position, stat, opponent_team_id):
         return 1.0  # STL/BLK not tracked positionally in this schema; neutral factor
 
     league_row = conn.execute(
-        f"SELECT AVG({col}) AS league_avg FROM v_team_position_defense WHERE position = ?",
-        (position,),
+        f"SELECT AVG({col}) AS league_avg FROM v_team_position_defense WHERE position = ? AND season = ?",
+        (position, season),
     ).fetchone()
     opp_row = conn.execute(
-        f"SELECT {col} AS opp_val FROM v_team_position_defense WHERE position = ? AND team_id = ?",
-        (position, opponent_team_id),
+        f"SELECT {col} AS opp_val FROM v_team_position_defense WHERE position = ? AND team_id = ? AND season = ?",
+        (position, opponent_team_id, season),
     ).fetchone()
 
     if not league_row or not opp_row or not league_row["league_avg"] or not opp_row["opp_val"]:
@@ -233,22 +254,22 @@ def _matchup_factor(conn, position, stat, opponent_team_id):
     return max(0.85, min(1.15, dampened))
 
 
-def _home_away_factor(conn, player_id, stat, is_home):
+def _home_away_factor(conn, player_id, stat, is_home, season):
     if is_home is None:
         return 1.0, "home/away not specified — no adjustment applied"
 
     col = STAT_COLUMNS.get(stat)
     if col is None:  # PRA
         rows = conn.execute(
-            "SELECT is_home, points, rebounds, assists FROM player_game_logs WHERE player_id = ?",
-            (player_id,),
+            "SELECT is_home, points, rebounds, assists FROM player_game_logs WHERE player_id = ? AND season = ?",
+            (player_id, season),
         ).fetchall()
         overall = [r["points"] + r["rebounds"] + r["assists"] for r in rows]
         split = [r["points"] + r["rebounds"] + r["assists"] for r in rows if r["is_home"] == is_home]
     else:
         rows = conn.execute(
-            f"SELECT is_home, {col} AS val FROM player_game_logs WHERE player_id = ?",
-            (player_id,),
+            f"SELECT is_home, {col} AS val FROM player_game_logs WHERE player_id = ? AND season = ?",
+            (player_id, season),
         ).fetchall()
         overall = [r["val"] for r in rows]
         split = [r["val"] for r in rows if r["is_home"] == is_home]
@@ -271,8 +292,11 @@ def _home_away_factor(conn, player_id, stat, is_home):
 
 def estimate_prop_probability(
     player_name, stat, line, opponent_abbr, direction="over",
-    is_home=None, recent_n=20, half_life=8, conn=None,
+    is_home=None, recent_n=20, half_life=8, conn=None, season=None,
 ):
+    """season: which season's data to use (e.g. '2025-26'). Defaults to
+    the most recent season loaded in the DB. Use list_seasons(conn) to
+    see what's available."""
     stat = stat.upper()
     direction = direction.lower()
     if stat not in STAT_COLUMNS:
@@ -283,20 +307,21 @@ def estimate_prop_probability(
     own_conn = conn is None
     conn = conn or _connect()
     try:
+        season = _resolve_season(conn, season)
         player = _find_player(conn, player_name)
         opponent = _find_team(conn, opponent_abbr)
 
         rows = conn.execute(
             """
             SELECT * FROM v_player_rolling_stats
-            WHERE player_id = ? AND games_ago <= ?
+            WHERE player_id = ? AND season = ? AND games_ago <= ?
             ORDER BY games_ago
             """,
-            (player["player_id"], recent_n),
+            (player["player_id"], season, recent_n),
         ).fetchall()
 
         if not rows:
-            raise ValueError(f"No game log data for {player['full_name']} — has data been loaded?")
+            raise ValueError(f"No {season} game log data for {player['full_name']} — try a different season (list_seasons) or check data has been loaded.")
 
         weighted_mean, weighted_std, n = _recency_weighted_stats(rows, stat, half_life)
         season_mean = sum(_stat_value(r, stat) for r in rows) / len(rows)
@@ -306,8 +331,8 @@ def estimate_prop_probability(
         floor_std = max(1.5, 0.25 * weighted_mean)
         eff_std = max(weighted_std, floor_std)
 
-        matchup_factor = _matchup_factor(conn, player["position"], stat, opponent["team_id"])
-        home_away_factor, ha_note = _home_away_factor(conn, player["player_id"], stat, is_home)
+        matchup_factor = _matchup_factor(conn, player["position"], stat, opponent["team_id"], season)
+        home_away_factor, ha_note = _home_away_factor(conn, player["player_id"], stat, is_home, season)
 
         adjusted_mean = weighted_mean * matchup_factor * home_away_factor
         adjusted_std = eff_std
@@ -337,6 +362,7 @@ def estimate_prop_probability(
 
         return PropResult(
             player_name=player["full_name"],
+            season=season,
             stat=stat,
             line=line,
             direction=direction,
@@ -370,5 +396,8 @@ def combine_probabilities(results):
 
 
 if __name__ == "__main__":
+    conn = _connect()
+    print("Seasons available:", list_seasons(conn))
+    conn.close()
     result = estimate_prop_probability("Marcus Johnson", "PTS", 20, "BOS", direction="over")
     print(result)

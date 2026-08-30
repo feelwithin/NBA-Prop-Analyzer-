@@ -73,18 +73,22 @@ def _weighted_mean_std(history, key, half_life=HALF_LIFE, recent_n=RECENT_N):
 MATCHUP_DAMPEN = 0.35  # mirrors prop_model.py — see its docstring for why
 
 
-def _defense_factor(team_position_stats, position, team_id, key):
-    """team_position_stats[(team_id, position)] = {'sum': {...}, 'count': n}
-    Returns (factor, min_count_across_league) — dampened + clipped like
-    prop_model._matchup_factor (the undamped version tested overconfident
-    in this exact script — see prop_model.py's docstring)."""
-    team_entry = team_position_stats.get((team_id, position))
+def _defense_factor(team_position_stats, position, team_season_key, key):
+    """team_position_stats[((team_id, season), position)] = {'sum': {...}, 'count': n}
+    team_season_key is (team_id, season) — keeping season in the key (rather
+    than just team_id) means the league average below is also computed
+    WITHIN that season only, so defense stats never blend across a season
+    boundary. Returns (factor, min_count_across_league) — dampened +
+    clipped like prop_model._matchup_factor (the undamped version tested
+    overconfident in this exact script — see prop_model.py's docstring)."""
+    team_entry = team_position_stats.get((team_season_key, position))
     if not team_entry or team_entry["count"] == 0:
         return 1.0, 0
 
+    _, season = team_season_key
     league_sum, league_count = 0.0, 0
-    for (tid, pos), entry in team_position_stats.items():
-        if pos == position:
+    for (tid_season, pos), entry in team_position_stats.items():
+        if pos == position and tid_season[1] == season:
             league_sum += entry["sum"][key]
             league_count += entry["count"]
     if league_count == 0:
@@ -117,22 +121,36 @@ def _home_away_factor(history, is_home, min_split=5):
     return factors
 
 
-def run_backtest(min_prior_games, min_defense_games, seed):
+def run_backtest(min_prior_games, min_defense_games, seed, season=None):
     rng = random.Random(seed)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    rows = conn.execute(
-        """
-        SELECT pgl.*, p.position
-        FROM player_game_logs pgl
-        JOIN players p ON p.player_id = pgl.player_id
-        ORDER BY pgl.game_date, pgl.game_id
-        """
-    ).fetchall()
+    if season:
+        rows = conn.execute(
+            """
+            SELECT pgl.*, p.position
+            FROM player_game_logs pgl
+            JOIN players p ON p.player_id = pgl.player_id
+            WHERE pgl.season = ?
+            ORDER BY pgl.game_date, pgl.game_id
+            """,
+            (season,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT pgl.*, p.position
+            FROM player_game_logs pgl
+            JOIN players p ON p.player_id = pgl.player_id
+            ORDER BY pgl.game_date, pgl.game_id
+            """
+        ).fetchall()
     conn.close()
 
     if not rows:
+        if season:
+            raise SystemExit(f"No game log data for season '{season}' — check --season or run load_db.py first.")
         raise SystemExit("No game log data found — run load_db.py first.")
 
     # Group by date so we predict on a whole date using only prior dates' state
@@ -148,7 +166,12 @@ def run_backtest(min_prior_games, min_defense_games, seed):
     for date in sorted(by_date.keys()):
         # ---- PREDICT using state as of before `date` ----
         for r in by_date[date]:
-            pid = r["player_id"]
+            # Keyed by (player_id, season) — and likewise team_position_stats
+            # below by (team_id, position, season) — so history/defense
+            # stats never blend across a season boundary even when multiple
+            # seasons are loaded and no --season filter is passed; an
+            # offseason gap shouldn't count as "recent form".
+            pid = (r["player_id"], r["season"])
             history = player_history[pid]
             if len(history) < min_prior_games:
                 continue
@@ -160,7 +183,7 @@ def run_backtest(min_prior_games, min_defense_games, seed):
                     weighted_mean, weighted_std, n = _weighted_mean_std(history, stat)
 
                 factor, def_n = _defense_factor(
-                    team_position_stats, r["position"], r["opponent_team_id"],
+                    team_position_stats, r["position"], (r["opponent_team_id"], r["season"]),
                     "points" if stat == "pra" else stat,
                 )
                 if def_n < min_defense_games:
@@ -193,12 +216,12 @@ def run_backtest(min_prior_games, min_defense_games, seed):
 
         # ---- UPDATE state with this date's actual results ----
         for r in by_date[date]:
-            pid = r["player_id"]
+            pid = (r["player_id"], r["season"])
             player_history[pid].append({
                 "points": r["points"], "rebounds": r["rebounds"], "assists": r["assists"],
                 "is_home": r["is_home"],
             })
-            key = (r["opponent_team_id"], r["position"])
+            key = ((r["opponent_team_id"], r["season"]), r["position"])
             entry = team_position_stats[key]
             entry["sum"]["points"] += r["points"]
             entry["sum"]["rebounds"] += r["rebounds"]
@@ -274,9 +297,11 @@ def main():
     parser.add_argument("--min-defense-games", type=int, default=15,
                          help="minimum sample size before trusting a team's position-defense stat")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--season", help="Restrict the backtest to one season, e.g. 2025-26. "
+                                          "Default: all loaded seasons (each still scored independently — no cross-season blending).")
     args = parser.parse_args()
 
-    results = run_backtest(args.min_prior_games, args.min_defense_games, args.seed)
+    results = run_backtest(args.min_prior_games, args.min_defense_games, args.seed, season=args.season)
     summarize(results)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

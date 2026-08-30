@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from prop_model import estimate_prop_probability, combine_probabilities, _connect  # noqa: E402
+from prop_model import estimate_prop_probability, combine_probabilities, _connect, list_seasons  # noqa: E402
 
 
 def parse_prop(spec):
@@ -35,7 +35,7 @@ def print_result(r):
     # so this just reflects whether that's more likely than not — it does
     # NOT need to re-check r.direction.
     verdict = "LIKELY HIT" if r.probability >= 0.5 else "LIKELY MISS"
-    print(f"\n{r.player_name} — {r.stat} {r.direction.upper()} {r.line} vs {r.opponent_abbr}")
+    print(f"\n{r.player_name} ({r.season}) — {r.stat} {r.direction.upper()} {r.line} vs {r.opponent_abbr}")
     print("-" * 60)
     print(f"  Probability of hitting:     {r.probability:6.1%}   [{verdict}]")
     print(f"  Confidence:                 {r.confidence}")
@@ -51,17 +51,30 @@ def print_result(r):
 
 def main():
     parser = argparse.ArgumentParser(description="Grade NBA player props against matchup-adjusted historical data.")
-    parser.add_argument("--player", required=True, help="Player full name (or unique substring)")
-    parser.add_argument("--opponent", required=True, help="Opponent team abbreviation, e.g. DEN")
+    parser.add_argument("--player", help="Player full name (or unique substring)")
+    parser.add_argument("--opponent", help="Opponent team abbreviation, e.g. DEN")
     parser.add_argument("--direction", default="over", choices=["over", "under"])
     parser.add_argument("--home", action="store_true", help="Player's team is playing at home")
     parser.add_argument("--away", action="store_true", help="Player's team is playing away")
     parser.add_argument("--recent-n", type=int, default=20, help="How many recent games to weight (default 20)")
+    parser.add_argument("--season", help="e.g. 2025-26. Defaults to the most recent season loaded. Pass --list-seasons to see what's available.")
+    parser.add_argument("--list-seasons", action="store_true", help="Print available seasons and exit")
     parser.add_argument("--stat", help="Single-prop mode: stat name (PTS, REB, AST, STL, BLK, PRA)")
     parser.add_argument("--line", type=float, help="Single-prop mode: the line, e.g. 30")
     parser.add_argument("--prop", action="append", default=[], help="Multi-prop mode: STAT:LINE, repeatable")
 
     args = parser.parse_args()
+
+    if args.list_seasons:
+        conn = _connect()
+        seasons = list_seasons(conn)
+        conn.close()
+        print("Available seasons:", ", ".join(seasons) if seasons else "(none loaded)")
+        return
+
+    if not args.player or not args.opponent:
+        raise SystemExit("--player and --opponent are required (unless using --list-seasons)")
+
     if args.home and args.away:
         raise SystemExit("--home and --away are mutually exclusive")
     is_home = True if args.home else (False if args.away else None)
@@ -80,7 +93,7 @@ def main():
             r = estimate_prop_probability(
                 args.player, stat, line, args.opponent,
                 direction=args.direction, is_home=is_home,
-                recent_n=args.recent_n, conn=conn,
+                recent_n=args.recent_n, conn=conn, season=args.season,
             )
             results.append(r)
             print_result(r)

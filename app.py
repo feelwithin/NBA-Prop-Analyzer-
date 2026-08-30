@@ -19,7 +19,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from prop_model import estimate_prop_probability, combine_probabilities, _connect, DB_PATH  # noqa: E402
+from prop_model import estimate_prop_probability, combine_probabilities, _connect, DB_PATH, list_seasons  # noqa: E402
 
 st.set_page_config(page_title="NBA Prop Analyzer", page_icon="🏀", layout="centered")
 
@@ -45,12 +45,13 @@ def load_options():
         (r["abbreviation"], r["team_name"])
         for r in conn.execute("SELECT abbreviation, team_name FROM teams ORDER BY team_name")
     ]
+    seasons = list_seasons(conn)
     conn.close()
-    return players, teams
+    return players, teams, seasons
 
 
 ensure_database()
-players, teams = load_options()
+players, teams, seasons = load_options()
 team_labels = [f"{name} ({abbr})" for abbr, name in teams]
 team_abbr_by_label = {f"{name} ({abbr})": abbr for abbr, name in teams}
 
@@ -64,6 +65,15 @@ st.caption(
 
 if "legs" not in st.session_state:
     st.session_state.legs = [{"stat": "PTS", "line": 20.0, "direction": "over"}]
+
+if len(seasons) > 1:
+    season = st.selectbox(
+        "Season", seasons, index=0,
+        help="Most recent season is selected by default (includes this year's rookies, "
+             "but has fewer games played so far). Earlier seasons have a full sample.",
+    )
+else:
+    season = seasons[0] if seasons else None
 
 st.subheader("Who and against whom?")
 col1, col2 = st.columns(2)
@@ -125,7 +135,7 @@ if st.button("Check pick(s)", type="primary", use_container_width=True):
                 r = estimate_prop_probability(
                     player, leg["stat"], leg["line"], opponent_abbr,
                     direction=leg["direction"], is_home=is_home,
-                    recent_n=recent_n, conn=conn,
+                    recent_n=recent_n, conn=conn, season=season,
                 )
                 results.append(r)
         except ValueError as e:
@@ -139,7 +149,7 @@ if st.button("Check pick(s)", type="primary", use_container_width=True):
             # confidence is e.g. "low (small sample)" — split off the level so
             # the metric tile doesn't truncate; the detail goes in the note below
             confidence_level = r.confidence.split(" ")[0]
-            st.markdown(f"### {r.player_name} — {STAT_LABELS[r.stat]} {r.direction.upper()} {r.line} vs {r.opponent_abbr}")
+            st.markdown(f"### {r.player_name} ({r.season}) — {STAT_LABELS[r.stat]} {r.direction.upper()} {r.line} vs {r.opponent_abbr}")
             m1, m2, m3 = st.columns(3)
             m1.metric("Probability", f"{r.probability:.1%}", verdict)
             m2.metric("Confidence", confidence_level.capitalize())

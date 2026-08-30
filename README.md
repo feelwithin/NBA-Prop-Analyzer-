@@ -128,6 +128,13 @@ Full per-pick results are also written to
   pulls real rosters and full-season box scores via the free
   [`nba_api`](https://github.com/swar/nba_api) package into the
   exact same schema, so nothing downstream changes.
+- **Multiple seasons at once** are fully supported — the database
+  schema, every feature view, `prop_model.py`, `cli.py`,
+  `app.py`, and `backtest.py` are all season-scoped, so stats from
+  different seasons never blend together. This is what lets you
+  keep a full, stable season (e.g. `2024-25`) as a reliable
+  baseline while also adding the current season as it fills in
+  (rookies included) — see **Adding a new season** below.
 
 ## Quickstart
 
@@ -155,9 +162,46 @@ CLI options:
 --direction over|under
 --home / --away       optional context for the home/away adjustment
 --recent-n N          how many recent games to weight (default 20)
+--season SEASON       e.g. 2025-26 — defaults to the most recent season loaded
+--list-seasons        print available seasons and exit
 --stat STAT --line N  single prop
 --prop STAT:LINE      repeatable, for multi-leg parlay checks
 ```
+
+## Adding a new season (keeping your existing data)
+
+Once you've fetched a season with `scripts/fetch_data.py`, you don't
+have to throw it away to add a newer one. Real NBA game IDs are
+globally unique across seasons, and players are matched by their
+persistent `player_id`, so seasons merge cleanly — a rookie is just
+a new player row, a returning player keeps their full history, and
+nothing from the season you already have gets lost.
+
+```bash
+# You already have, say, data/seed/*.csv for 2024-25. To add 2025-26
+# alongside it (not instead of it), pass --append:
+python3 scripts/fetch_data.py --season 2025-26 --append
+python3 scripts/load_db.py
+```
+
+Now both seasons are in the database, and:
+- **CLI**: `--season 2025-26` (or `--season 2024-25`) picks which
+  one to use; omitting it defaults to the most recent. Run
+  `python3 scripts/cli.py --list-seasons` to see what's loaded.
+- **Web app**: a **Season** dropdown appears automatically (only
+  shown when more than one season is loaded) — pick the full,
+  stable season for a deeper sample, or the current season to
+  include this year's rookies and trades, with the tradeoff of
+  fewer games played so far.
+- **Backtest**: `python3 scripts/backtest.py --season 2025-26`
+  restricts calibration testing to one season; omitting `--season`
+  tests all loaded seasons at once (each still scored independently
+  — a player's or team's stats from one season are never used to
+  predict a game in another).
+
+Without `--append`, `fetch_data.py` overwrites `data/seed/*.csv`
+with just the one season you fetched — use that if you want to
+start over rather than add on.
 
 Or query the SQL views directly:
 ```bash
@@ -203,8 +247,8 @@ names aren't real NBA players.
 ```
 teams (team_id PK, team_name, abbreviation, city, conference, division)
 players (player_id PK, full_name, team_id FK, position, role)
-games (game_id PK, game_date, season, home_team_id FK, away_team_id FK, home_score, away_score)
-player_game_logs (log_id PK, game_id FK, game_date, player_id FK, team_id FK,
+games (game_id PK [TEXT], game_date, season, home_team_id FK, away_team_id FK, home_score, away_score)
+player_game_logs (log_id PK [TEXT], game_id FK, game_date, season, player_id FK, team_id FK,
                    opponent_team_id FK, is_home, minutes, points, rebounds, assists,
                    steals, blocks, turnovers, fg_made, fg_attempted, three_made,
                    three_attempted, ft_made, ft_attempted)
