@@ -25,9 +25,21 @@ on:
 permissions:
   contents: write
 
+env:
+  # Python buffers stdout when it isn't attached to a real terminal (true
+  # for every step here), so without this, fetch_data.py's progress
+  # prints (roster-by-roster, etc.) don't show up in the live log until
+  # the buffer fills or the process exits — making a slow or stuck run
+  # indistinguishable from a fast one until it's too late to tell which.
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 20  # NBA's stats API sometimes blocks/rate-limits cloud
+                          # IPs (GitHub's runners included) even when the
+                          # same code works fine from a home connection —
+                          # fail clearly instead of hanging for hours if so.
     steps:
       - uses: actions/checkout@v4
 
