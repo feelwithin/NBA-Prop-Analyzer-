@@ -2,17 +2,17 @@ player_id,full_name,team_id,position,role
 1631210,Jacob Toppin,1610612737,F,starter
 1630552,Jalen Johnson,1610612737,F,starter
 1630811,Keaton Wallace,1610612737,G,starter
-1627747,Caris LeVert,1610612765,G,starter
-1641723,Kobe Bufkin,1610612747,F,starter
+1627747,Caris LeVert,1610612749,G,starter
+1641723,Kobe Bufkin,1610612740,G,starter
 1630700,Dyson Daniels,1610612737,G,starter
-1642258,Zaccharie Risacher,1610612737,F,starter
+1642258,Zaccharie Risacher,1610612742,F,starter
 1629027,Trae Young,1610612764,G,starter
 1629611,Terance Mann,1610612751,G,starter
 203991,Clint Capela,1610612745,C,starter
 1630168,Onyeka Okongwu,1610612737,F,starter
 1631243,Mouhamed Gueye,1610612737,F,starter
-1627777,Georges Niang,1610612737,F,starter
-1626204,Larry Nance Jr.,1610612739,F,starter
+1627777,Georges Niang,1610612744,F,starter
+1626204,Larry Nance Jr.,1610612754,F,starter
 1629726,Garrison Mathews,1610612754,F,starter
 1631230,Dominick Barlow,1610612755,F,starter
 1630249,Vít Krejčí,1610612757,G,starter
@@ -20,7 +20,7 @@ player_id,full_name,team_id,position,role
 1628369,Jayson Tatum,1610612738,F,starter
 1641936,Miles Norris,1610612738,F,starter
 201950,Jrue Holiday,1610612757,G,starter
-1627759,Jaylen Brown,1610612738,G,starter
+1627759,Jaylen Brown,1610612755,G,starter
 204001,Kristaps Porziņģis,1610612744,F,starter
 1628401,Derrick White,1610612738,G,starter
 1630202,Payton Pritchard,1610612738,G,starter
@@ -34,7 +34,7 @@ player_id,full_name,team_id,position,role
 201143,Al Horford,1610612744,C,starter
 1631248,Baylor Scheierman,1610612738,G,starter
 1629674,Neemias Queta,1610612738,C,starter
-1629622,Max Strus,1610612739,G,starter
+1629622,Max Strus,1610612746,G,starter
 1629660,Ty Jerome,1610612763,G,starter
 1630596,Evan Mobley,1610612739,C,starter
 1630241,Sam Merrill,1610612739,G,starter
@@ -48,7 +48,7 @@ player_id,full_name,team_id,position,role
 1642281,Jaylon Tyson,1610612739,G,starter
 1641772,Nae'Qwan Tomlin,1610612739,F,starter
 1628386,Jarrett Allen,1610612739,C,starter
-1629731,Dean Wade,1610612739,F,starter
+1629731,Dean Wade,1610612755,F,starter
 1631247,Luke Travers,1610612739,F,starter
 1630171,Isaac Okoro,1610612741,F,starter
 1628378,Donovan Mitchell,1610612739,G,starter
@@ -75,27 +75,27 @@ player_id,full_name,team_id,position,role
 1630581,Josh Giddey,1610612741,G,starter
 1628975,Jevon Carter,1610612753,G,starter
 1630188,Jalen Smith,1610612741,F,starter
-202696,Nikola Vučević,1610612738,C,starter
+202696,Nikola Vučević,1610612753,C,starter
 1630245,Ayo Dosunmu,1610612750,G,starter
 1642443,Jahmir Young,1610612748,G,starter
 1628380,Zach Collins,1610612741,F,starter
 1628989,Kevin Huerter,1610612765,G,starter
 1641824,Matas Buzelis,1610612741,F,starter
-1641763,Julian Phillips,1610612750,F,starter
+1641763,Julian Phillips,1610612745,F,starter
 1641801,Emanuel Miller,1610612759,F,starter
 1629659,Talen Horton-Tucker,1610612741,G,starter
-1631207,Dalen Terry,1610612755,F,starter
+1631207,Dalen Terry,1610612744,F,starter
 1630200,Tre Jones,1610612741,G,starter
 1630604,E.J. Liddell,1610612751,F,starter
 1630172,Patrick Williams,1610612741,F,starter
 203957,Danté Exum,1610612742,G,starter
 1631108,Max Christie,1610612742,G,starter
-1630702,Jaden Hardy,1610612764,G,starter
+1630702,Jaden Hardy,1610612747,G,starter
 1641726,Dereck Lively II,1610612742,C,starter
 203076,Anthony Davis,1610612764,F,starter
 203939,Dwight Powell,1610612742,F,starter
 1641765,Olivier-Maxence Prosper,1610612763,F,starter
-1630314,Brandon Williams,1610612742,G,starter
+1630314,Brandon Williams,1610612744,G,starter
 202681,Kyrie Irving,1610612742,G,starter
 1630230,Naji Marshall,1610612742,F,starter
 1628997,Caleb Martin,1610612742,F,starter
@@ -104,22 +104,22 @@ player_id,full_name,team_id,position,role
 1630539,Kai Jones,1610612742,C,starter
 1629023,P.J. Washington,1610612742,F,starter
 203915,Spencer Dinwiddie,1610612742,G,starter
-202691,Klay Thompson,1610612742,G,starter
+202691,Klay Thompson,1610612748,G,starter
 1631128,Christian Braun,1610612743,G,starter
 1629008,Michael Porter Jr.,1610612751,F,starter
 1631124,Julian Strawther,1610612743,G,starter
 201566,Russell Westbrook,1610612758,G,starter
 1641816,Hunter Tyson,1610612743,F,starter
 201599,DeAndre Jordan,1610612740,C,starter
-1631212,Peyton Watson,1610612743,G,starter
+1631212,Peyton Watson,1610612739,G,starter
 203967,Dario Saric,1610612758,F,starter
 1641790,PJ Hall,1610612766,C,starter
 1641747,DaRon Holmes II,1610612743,F,starter
 203999,Nikola Jokić,1610612743,C,starter
 1642461,Spencer Jones,1610612743,F,starter
 1630192,Zeke Nnaji,1610612743,F,starter
-1641725,Trey Alexander,1610612740,G,starter
-1629618,Jalen Pickett,1610612743,G,starter
+1641725,Trey Alexander,1610612762,G,starter
+1629618,Jalen Pickett,1610612746,G,starter
 1627750,Jamal Murray,1610612743,G,starter
 1628427,Vlatko Čančar,1610612743,F,starter
 203932,Aaron Gordon,1610612743,F,starter
@@ -128,18 +128,18 @@ player_id,full_name,team_id,position,role
 1642379,Taran Armstrong,1610612744,G,starter
 1641764,Brandin Podziemski,1610612744,G,starter
 1630541,Moses Moody,1610612744,G,starter
-1626172,Kevon Looney,1610612740,F,starter
+1626172,Kevon Looney,1610612747,F,starter
 1627741,Buddy Hield,1610612737,G,starter
 202710,Jimmy Butler III,1610612744,F,starter
 1630296,Braxton Key,1610612744,F,starter
 1630611,Gui Santos,1610612744,F,starter
-1642366,Quinten Post,1610612744,C,starter
+1642366,Quinten Post,1610612763,C,starter
 203110,Draymond Green,1610612744,F,starter
 201939,Stephen Curry,1610612744,G,starter
 1628995,Kevin Knox II,1610612744,F,starter
 1631218,Trayce Jackson-Davis,1610612761,F,starter
 1642050,Jackson Rowe,1610612744,F,starter
-1630311,Pat Spencer,1610612744,G,starter
+1630311,Pat Spencer,1610612756,G,starter
 1628988,Aaron Holiday,1610612745,G,starter
 1641708,Amen Thompson,1610612745,G,starter
 1629111,Jock Landale,1610612737,C,starter
@@ -164,13 +164,13 @@ player_id,full_name,team_id,position,role
 1629599,Amir Coffey,1610612756,G,starter
 1627739,Kris Dunn,1610612746,G,starter
 1642280,Trentyn Flowers,1610612741,F,starter
-203992,Bogdan Bogdanović,1610612746,G,starter
+203992,Bogdan Bogdanović,1610612745,G,starter
 1641757,Jordan Miller,1610612746,G,starter
 1642353,Cam Christie,1610612746,G,starter
 1629234,Drew Eubanks,1610612758,F,starter
 1641738,Kobe Brown,1610612754,F,starter
 1631116,Patrick Baldwin Jr.,1610612758,F,starter
-1626181,Norman Powell,1610612748,G,starter
+1626181,Norman Powell,1610612741,G,starter
 1627732,Ben Simmons,1610612746,G,starter
 201587,Nicolas Batum,1610612746,G,starter
 1627826,Ivica Zubac,1610612754,C,starter
@@ -180,32 +180,32 @@ player_id,full_name,team_id,position,role
 1642261,Dalton Knecht,1610612747,F,starter
 1629216,Gabe Vincent,1610612737,G,starter
 1642355,Bronny James,1610612747,G,starter
-1631132,Christian Koloko,1610612737,C,starter
-1629637,Jaxson Hayes,1610612747,C,starter
+1631132,Christian Koloko,1610612740,C,starter
+1629637,Jaxson Hayes,1610612762,C,starter
 1628467,Maxi Kleber,1610612747,F,starter
 1630559,Austin Reaves,1610612747,G,starter
-1627827,Dorian Finney-Smith,1610612745,F,starter
+1627827,Dorian Finney-Smith,1610612766,F,starter
 1629003,Shake Milton,1610612747,G,starter
-2544,LeBron James,1610612747,F,starter
+2544,LeBron James,1610612755,F,starter
 203458,Alex Len,1610612747,C,starter
-1629060,Rui Hachimura,1610612747,F,starter
+1629060,Rui Hachimura,1610612746,F,starter
 1630692,Jordan Goodwin,1610612756,G,starter
-1641998,Trey Jemison III,1610612752,C,starter
+1641998,Trey Jemison III,1610612761,C,starter
 1629029,Luka Dončić,1610612747,F,starter
 202693,Markieff Morris,1610612747,F,starter
 1641815,Isaiah Stevens,1610612758,G,starter
 1626179,Terry Rozier,1610612748,G,starter
 1631107,Nikola Jović,1610612748,F,starter
-1642276,Kel'el Ware,1610612748,C,starter
+1642276,Kel'el Ware,1610612749,C,starter
 1630528,Josh Christopher,1610612748,G,starter
 1641796,Pelle Larsson,1610612748,G,starter
-1631170,Jaime Jaquez Jr.,1610612748,G,starter
+1631170,Jaime Jaquez Jr.,1610612749,G,starter
 1630696,Dru Smith,1610612748,G,starter
 1628389,Bam Adebayo,1610612748,C,starter
-1629639,Tyler Herro,1610612748,G,starter
+1629639,Tyler Herro,1610612749,G,starter
 1642352,Keshad Johnson,1610612748,F,starter
 202692,Alec Burks,1610612748,G,starter
-203937,Kyle Anderson,1610612750,F,starter
+203937,Kyle Anderson,1610612761,F,starter
 203952,Andrew Wiggins,1610612748,F,starter
 1629312,Haywood Highsmith,1610612756,F,starter
 201567,Kevin Love,1610612762,F,starter
@@ -216,9 +216,9 @@ player_id,full_name,team_id,position,role
 1629645,Kevin Porter Jr.,1610612749,G,starter
 1629018,Gary Trent Jr.,1610612749,G,starter
 1641753,Chris Livingston,1610612739,F,starter
-1626171,Bobby Portis,1610612749,F,starter
+1626171,Bobby Portis Jr.,1610612748,F,starter
 201572,Brook Lopez,1610612746,C,starter
-1627752,Taurean Prince,1610612749,F,starter
+1627752,Taurean Prince,1610612765,F,starter
 1631157,Ryan Rollins,1610612749,G,starter
 1631123,Jamaree Bouyea,1610612756,G,starter
 1630649,Stanley Umude,1610612759,F,starter
@@ -226,44 +226,44 @@ player_id,full_name,team_id,position,role
 1631260,AJ Green,1610612749,G,starter
 1641890,Tyler Smith,1610612742,F,starter
 1626192,Pat Connaughton,1610612766,G,starter
-203507,Giannis Antetokounmpo,1610612749,F,starter
+203507,Giannis Antetokounmpo,1610612748,F,starter
 1631250,Pete Nance,1610612749,F,starter
-1641748,Andre Jackson Jr.,1610612749,G,starter
+1641748,Andre Jackson Jr.,1610612761,G,starter
 1628978,Donte DiVincenzo,1610612750,G,starter
-1630545,Terrence Shannon Jr.,1610612750,G,starter
+1630545,Terrence Shannon Jr,1610612750,G,starter
 1630183,Jaden McDaniels,1610612750,F,starter
 1642265,Rob Dillingham,1610612741,G,starter
 1630162,Anthony Edwards,1610612750,G,starter
 204060,Joe Ingles,1610612750,F,starter
 1631169,Josh Minott,1610612751,F,starter
 1629638,Nickeil Alexander-Walker,1610612737,G,starter
-201144,Mike Conley,1610612750,G,starter
-1629675,Naz Reid,1610612750,C,starter
+201144,Mike Conley,1610612738,G,starter
+1629675,Naz Reid,1610612766,C,starter
 1641803,Tristen Newton,1610612745,G,starter
 1642399,Jesse Edwards,1610612750,C,starter
 1641740,Jaylen Clark,1610612750,G,starter
 203497,Rudy Gobert,1610612750,C,starter
-203944,Julius Randle,1610612750,F,starter
+203944,Julius Randle,1610612751,F,starter
 1631159,Leonard Miller,1610612741,F,starter
 1630568,Luka Garza,1610612738,C,starter
 1630538,Bones Hyland,1610612750,G,starter
 1641727,Dariq Whitehead,1610612763,F,starter
-1626156,D'Angelo Russell,1610612764,G,starter
+1626156,D'Angelo Russell,1610612763,G,starter
 1629661,Cameron Johnson,1610612743,F,starter
 1641736,Reece Beekman,1610612751,G,starter
-1630533,Ziaire Williams,1610612751,F,starter
-1630570,Trendon Watford,1610612755,G,starter
+1630533,Ziaire Williams,1610612747,F,starter
+1630570,Trendon Watford,1610612740,G,starter
 1630623,Tyson Etienne,1610612751,G,starter
 1641787,Tosan Evbuomwan,1610612766,F,starter
 1631213,Tyrese Martin,1610612755,F,starter
 1629001,De'Anthony Melton,1610612744,G,starter
 1630549,Day'Ron Sharpe,1610612751,C,starter
 1641730,Noah Clowney,1610612751,F,starter
-1630592,Jalen Wilson,1610612751,F,starter
+1630592,Jalen Wilson,1610612737,F,starter
 1630560,Cam Thomas,1610612749,F,starter
 1631166,Drew Timme,1610612747,F,starter
 1641721,Maxwell Lewis,1610612751,F,starter
-1629651,Nic Claxton,1610612751,C,starter
+1629651,Nic Claxton,1610612741,C,starter
 1630553,Keon Johnson,1610612751,G,starter
 200782,P.J. Tucker,1610612752,F,starter
 1626153,Delon Wright,1610612752,G,starter
@@ -277,24 +277,24 @@ player_id,full_name,team_id,position,role
 1641755,Kevin McCullar Jr.,1610612752,G,starter
 1628973,Jalen Brunson,1610612752,G,starter
 1642278,Tyler Kolek,1610612752,G,starter
-1629011,Mitchell Robinson,1610612752,C,starter
+1629011,Mitchell Robinson,1610612738,C,starter
 1628969,Mikal Bridges,1610612752,G,starter
 1641817,Anton Watson,1610612752,F,starter
 1626157,Karl-Anthony Towns,1610612752,C,starter
 1629013,Landry Shamet,1610612752,G,starter
-1630574,Ariel Hukporti,1610612752,C,starter
+1630574,Ariel Hukporti,1610612755,C,starter
 1641710,Anthony Black,1610612753,G,starter
 1628371,Jonathan Isaac,1610612753,F,starter
-1631216,Caleb Houstan,1610612737,F,starter
+1631216,Caleb Houstan,1610612740,G,starter
 1630217,Desmond Bane,1610612753,G,starter
 1630591,Jalen Suggs,1610612753,G,starter
 1631094,Paolo Banchero,1610612753,F,starter
 1630644,Mac McClung,1610612741,G,starter
 202709,Cory Joseph,1610612753,G,starter
 1630243,Trevelin Queen,1610612753,G,starter
-1641724,Jett Howard,1610612753,G,starter
-203914,Gary Harris,1610612749,G,starter
-1629021,Moritz Wagner,1610612753,F,starter
+1641724,Jett Howard,1610612742,G,starter
+203914,Gary Harris,1610612765,G,starter
+1629021,Moritz Wagner,1610612751,F,starter
 1630532,Franz Wagner,1610612753,F,starter
 1641783,Tristan da Silva,1610612753,F,starter
 1628976,Wendell Carter Jr.,1610612753,C,starter
@@ -319,11 +319,11 @@ player_id,full_name,team_id,position,role
 1626167,Myles Turner,1610612749,C,starter
 1627783,Pascal Siakam,1610612754,F,starter
 1630178,Tyrese Maxey,1610612755,G,starter
-203083,Andre Drummond,1610612755,C,starter
-1629656,Quentin Grimes,1610612755,G,starter
+203083,Andre Drummond,1610612752,C,starter
+1629656,Quentin Grimes,1610612747,G,starter
 200768,Kyle Lowry,1610612755,G,starter
-202331,Paul George,1610612755,F,starter
-1626162,Kelly Oubre Jr.,1610612755,F,starter
+202331,Paul George,1610612738,F,starter
+1626162,Kelly Oubre Jr.,1610612754,F,starter
 1630288,Jeff Dowtin Jr.,1610612755,G,starter
 1630215,Jared Butler,1610612755,G,starter
 1641741,Ricky Council IV,1610612755,G,starter
@@ -336,13 +336,13 @@ player_id,full_name,team_id,position,role
 1627824,Guerschon Yabusele,1610612741,F,starter
 1641737,Adem Bona,1610612755,F,starter
 1642024,Alex Reese,1610612755,F,starter
-1626220,Royce O'Neale,1610612756,F,starter
+1626220,Royce O'Neale,1610612766,F,starter
 1642346,Ryan Dunn,1610612756,F,starter
 1626164,Devin Booker,1610612756,G,starter
-1630208,Nick Richards,1610612741,C,starter
+1630208,Nick Richards,1610612748,C,starter
 203078,Bradley Beal,1610612746,G,starter
 1642345,Oso Ighodaro,1610612756,F,starter
-1628960,Grayson Allen,1610612756,G,starter
+1628960,Grayson Allen,1610612766,G,starter
 1627814,Damion Lee,1610612756,G,starter
 1629626,Bol Bol,1610612756,C,starter
 1631221,Collin Gillespie,1610612756,G,starter
@@ -355,18 +355,18 @@ player_id,full_name,team_id,position,role
 1628420,Monte Morris,1610612754,F,starter
 201142,Kevin Durant,1610612745,F,starter
 1630703,Scoot Henderson,1610612757,G,starter
-1629014,Anfernee Simons,1610612741,G,starter
-1629028,Deandre Ayton,1610612747,C,starter
-1629680,Matisse Thybulle,1610612757,G,starter
+1629014,Anfernee Simons,1610612755,G,starter
+1629028,Deandre Ayton,1610612764,C,starter
+1629680,Matisse Thybulle,1610612747,G,starter
 1630625,Dalano Banton,1610612738,F,starter
 1630166,Deni Avdija,1610612757,F,starter
-203924,Jerami Grant,1610612757,F,starter
+203924,Jerami Grant,1610612763,F,starter
 1631303,Justin Minaya,1610612757,F,starter
 1631121,Bryce McGowens,1610612740,G,starter
 1631101,Shaedon Sharpe,1610612757,G,starter
-1641712,Rayan Rupert,1610612763,G,starter
+1641712,Rayan Rupert,1610612755,G,starter
 1642270,Donovan Clingan,1610612757,C,starter
-1631200,Kris Murray,1610612757,F,starter
+1631200,Kris Murray,1610612763,F,starter
 1631321,Sidy Cissoko,1610612757,G,starter
 1641871,Duop Reath,1610612757,F,starter
 1641739,Toumani Camara,1610612757,F,starter
@@ -383,11 +383,11 @@ player_id,full_name,team_id,position,role
 1630222,Mason Jones,1610612758,G,starter
 202685,Jonas Valančiūnas,1610612743,C,starter
 1628365,Markelle Fultz,1610612761,F,starter
-1642269,Devin Carter,1610612758,G,starter
-1631165,Keon Ellis,1610612739,G,starter
+1642269,Devin Carter,1610612737,G,starter
+1631165,Keon Ellis,1610612751,G,starter
 1642384,Isaiah Crawford,1610612745,F,starter
 1631222,Jake LaRavia,1610612747,F,starter
-1626168,Trey Lyles,1610612758,F,starter
+1626168,Trey Lyles,1610612750,F,starter
 203109,Jae Crowder,1610612758,F,starter
 1629640,Keldon Johnson,1610612759,F,starter
 1641705,Victor Wembanyama,1610612759,F,starter
@@ -395,7 +395,7 @@ player_id,full_name,team_id,position,role
 1628368,De'Aaron Fox,1610612759,G,starter
 1642264,Stephon Castle,1610612759,G,starter
 1630561,David Duke Jr.,1610612759,G,starter
-1631110,Jeremy Sochan,1610612752,F,starter
+1631110,Jeremy Sochan,1610612757,F,starter
 1629162,Jordan McLaughlin,1610612759,G,starter
 1631104,Blake Wesley,1610612757,G,starter
 202687,Bismack Biyombo,1610612759,C,starter
@@ -405,20 +405,20 @@ player_id,full_name,team_id,position,role
 1629646,Charles Bassey,1610612744,C,starter
 1630577,Julian Champagnie,1610612759,F,starter
 203084,Harrison Barnes,1610612759,F,starter
-1630572,Sandro Mamukelashvili,1610612761,F,starter
-1631127,Harrison Ingram,1610612759,F,starter
+1630572,Sandro Mamukelashvili,1610612747,F,starter
+1631127,Harrison Ingram,1610612762,F,starter
 1628983,Shai Gilgeous-Alexander,1610612760,G,starter
 1641794,Dillon Jones,1610612752,F,starter
-1629652,Luguentz Dort,1610612760,G,starter
+1629652,Luguentz Dort,1610612737,G,starter
 1631119,Jaylin Williams,1610612760,F,starter
 1631096,Chet Holmgren,1610612760,C,starter
 1631114,Jalen Williams,1610612760,G,starter
 1627936,Alex Caruso,1610612760,G,starter
-1630198,Isaiah Joe,1610612760,G,starter
+1630198,Isaiah Joe,1610612765,G,starter
 1631172,Ousmane Dieng,1610612749,F,starter
-1641745,Adam Flagler,1610612760,G,starter
-1642382,Branden Carlson,1610612760,C,starter
-1630598,Aaron Wiggins,1610612760,G,starter
+1641745,Adam Flagler,1610612758,G,starter
+1642382,Branden Carlson,1610612757,C,starter
+1630598,Aaron Wiggins,1610612737,G,starter
 1641717,Cason Wallace,1610612760,G,starter
 1642349,Ajay Mitchell,1610612760,G,starter
 1629026,Kenrich Williams,1610612760,G,starter
@@ -427,7 +427,7 @@ player_id,full_name,team_id,position,role
 1642505,Alex Ducas,1610612760,G,starter
 1630639,A.J. Lawson,1610612761,G,starter
 1641711,Gradey Dick,1610612761,G,starter
-1642367,Jonathan Mogbo,1610612761,F,starter
+1642367,Jonathan Mogbo,1610612758,F,starter
 1627742,Brandon Ingram,1610612761,F,starter
 1630567,Scottie Barnes,1610612761,F,starter
 1630193,Immanuel Quickley,1610612761,G,starter
@@ -444,46 +444,46 @@ player_id,full_name,team_id,position,role
 1642419,Jamison Battle,1610612761,F,starter
 203903,Jordan Clarkson,1610612752,G,starter
 1641707,Taylor Hendricks,1610612763,F,starter
-1629012,Collin Sexton,1610612741,G,starter
+1629012,Collin Sexton,1610612747,G,starter
 1641718,Keyonte George,1610612762,G,starter
-1642262,Cody Williams,1610612762,F,starter
+1642262,Cody Williams,1610612750,F,starter
 1630531,Jaden Springer,1610612762,G,starter
 1642268,Isaiah Collier,1610612762,G,starter
-1641989,Elijah Harkless,1610612762,G,starter
+1641989,Elijah Harkless,1610612765,G,starter
 1629004,Svi Mykhailiuk,1610612762,G,starter
-1628381,John Collins,1610612746,F,starter
+1628381,John Collins,1610612765,F,starter
 1642271,Kyle Filipowski,1610612762,C,starter
 1628374,Lauri Markkanen,1610612762,F,starter
-1631117,Walker Kessler,1610612762,C,starter
-1630695,Micah Potter,1610612754,C,starter
+1631117,Walker Kessler,1610612747,C,starter
+1630695,Micah Potter,1610612757,C,starter
 1641729,Brice Sensabaugh,1610612762,F,starter
 1630548,Johnny Juzang,1610612750,F,starter
-1631131,Oscar Tshiebwe,1610612762,F,starter
+1631131,Oscar Tshiebwe,1610612745,F,starter
 1630231,KJ Martin,1610612762,F,starter
 1642389,Zyon Pullin,1610612750,G,starter
 1642377,Jaylen Wells,1610612763,F,starter
 1630590,Scotty Pippen Jr.,1610612763,G,starter
-203484,Kentavious Caldwell-Pope,1610612763,G,starter
+203484,Kentavious Caldwell-Pope,1610612755,G,starter
 1631246,Vince Williams Jr.,1610612762,F,starter
-1630583,Santi Aldama,1610612763,F,starter
+1630583,Santi Aldama,1610612742,F,starter
 1630205,Lamar Stevens,1610612763,F,starter
-1628379,Luke Kennard,1610612747,G,starter
-1629630,Ja Morant,1610612763,G,starter
+1628379,Luke Kennard,1610612756,G,starter
+1629630,Ja Morant,1610612757,G,starter
 1628991,Jaren Jackson Jr.,1610612762,F,starter
 1641744,Zach Edey,1610612763,C,starter
 1629634,Brandon Clarke,1610612763,F,starter
-1642530,Yuki Kawamura,1610612741,G,starter
+1642530,Yuki Kawamura,1610612746,G,starter
 1642285,Cam Spencer,1610612763,G,starter
 1630643,Jay Huff,1610612754,C,starter
-1628963,Marvin Bagley III,1610612742,F,starter
+1628963,Marvin Bagley III,1610612743,F,starter
 1641713,GG Jackson,1610612763,F,starter
-1629723,John Konchar,1610612762,G,starter
+1629723,John Konchar,1610612750,G,starter
 1630175,Cole Anthony,1610612749,F,starter
 1641731,Bilal Coulibaly,1610612764,G,starter
 1641774,Tristan Vukcevic,1610612764,F,starter
 1641732,Colby Jones,1610612765,F,starter
 1641798,Jaylen Martin,1610612764,G,starter
-1642358,AJ Johnson,1610612742,G,starter
+1642358,AJ Johnson,1610612763,G,starter
 1642267,Bub Carrington,1610612764,G,starter
 1630551,Justin Champagnie,1610612764,G,starter
 1629673,Jordan Poole,1610612740,G,starter
@@ -495,39 +495,39 @@ player_id,full_name,team_id,position,role
 1630550,JT Thor,1610612764,F,starter
 1626158,Richaun Holmes,1610612764,F,starter
 1630557,Corey Kispert,1610612737,F,starter
-203114,Khris Middleton,1610612742,F,starter
-203935,Marcus Smart,1610612747,G,starter
+203114,Khris Middleton,1610612764,F,starter
+203935,Marcus Smart,1610612745,G,starter
 1631105,Jalen Duren,1610612765,C,starter
 1641842,Ronald Holland II,1610612765,F,starter
 1630595,Cade Cunningham,1610612765,G,starter
 1627736,Malik Beasley,1610612765,G,starter
 1630194,Paul Reed,1610612765,F,starter
-203501,Tim Hardaway Jr.,1610612743,G,starter
+203501,Tim Hardaway Jr.,1610612748,G,starter
 1641709,Ausar Thompson,1610612765,G,starter
-202699,Tobias Harris,1610612765,F,starter
+202699,Tobias Harris,1610612759,F,starter
 1631199,Ron Harper Jr.,1610612738,G,starter
-203471,Dennis Schröder,1610612739,G,starter
+203471,Dennis Schröder,1610612766,G,starter
 1631323,Simone Fontecchio,1610612748,F,starter
 1631093,Jaden Ivey,1610612741,F,starter
 1642450,Daniss Jenkins,1610612765,G,starter
-1631204,Marcus Sasser,1610612765,G,starter
-1630191,Isaiah Stewart,1610612765,F,starter
+1631204,Marcus Sasser,1610612742,G,starter
+1630191,Isaiah Stewart,1610612763,F,starter
 1641752,Bobi Klintman,1610612765,F,starter
 1642449,Tolu Smith,1610612765,F,starter
 1630322,Lindy Waters III,1610612759,F,starter
-1628970,Miles Bridges,1610612766,F,starter
-1630163,LaMelo Ball,1610612766,G,starter
+1628970,Miles Bridges,1610612756,F,starter
+1630163,LaMelo Ball,1610612750,G,starter
 1629684,Grant Williams,1610612766,F,starter
 1629610,DaQuan Jeffries,1610612758,F,starter
 1631109,Mark Williams,1610612756,C,starter
 1641878,Damion Baugh,1610612766,G,starter
 1641733,Nick Smith Jr.,1610612747,G,starter
 1631111,Wendell Moore Jr.,1610612765,G,starter
-1630182,Josh Green,1610612766,G,starter
+1630182,Josh Green,1610612762,G,starter
 203994,Jusuf Nurkić,1610612762,C,starter
-1629006,Josh Okogie,1610612745,G,starter
+1629006,Josh Okogie,1610612762,G,starter
 1631217,Moussa Diabaté,1610612766,F,starter
-1630544,Tre Mann,1610612766,G,starter
+1630544,Tre Mann,1610612764,G,starter
 1641706,Brandon Miller,1610612766,F,starter
 1642354,KJ Simpson,1610612743,G,starter
 203552,Seth Curry,1610612744,G,starter
@@ -552,7 +552,7 @@ player_id,full_name,team_id,position,role
 1630346,Matt Ryan,1610612752,F,starter
 1642422,Armel Traore,1610612747,F,starter
 1631115,Orlando Robinson,1610612753,F,starter
-1628964,Mo Bamba,1610612762,F,starter
+1628964,Mo Bamba,1610612762,C,starter
 1629650,Moses Brown,1610612742,F,starter
 1631386,Taze Moore,1610612757,F,starter
 1631306,Cole Swider,1610612761,F,starter
@@ -576,7 +576,7 @@ player_id,full_name,team_id,position,role
 1630600,Isaiah Mobley,1610612755,F,starter
 1642933,Keshon Gilbert,1610612737,G,starter
 1642854,Asa Newell,1610612737,F,starter
-1642910,John Tonje,1610612738,G,starter
+1642910,John Tonje,1610612757,G,starter
 1642864,Hugo González,1610612738,G,starter
 1642917,Max Shulga,1610612738,G,starter
 1642873,Amari Williams,1610612738,F,starter
@@ -592,21 +592,21 @@ player_id,full_name,team_id,position,role
 1642855,Noa Essengue,1610612741,F,starter
 1642950,Lachlan Olbrich,1610612741,C,starter
 1642967,John Poulakidas,1610612742,G,starter
-1642948,Ryan Nembhard,1610612742,G,starter
+1642948,Ryan Nembhard,1610612737,G,starter
 1630619,Moussa Cisse,1610612742,C,starter
 1642843,Cooper Flagg,1610612742,F,starter
 1642938,Curtis Jones,1610612743,G,starter
 1642954,Will Richard,1610612744,G,starter
 1643018,LJ Cryer,1610612744,G,starter
 1641807,Norchad Omier,1610612746,F,starter
-1642951,Sean Pedulla,1610612746,G,starter
+1642951,Sean Pedulla,1610612745,G,starter
 1642920,Kobe Sanders,1610612746,G,starter
 1642949,Yanic Konan Niederhäuser,1610612746,C,starter
 1642876,Adou Thiero,1610612747,G,starter
 1643024,Chris Mañon,1610612747,G,starter
 1631211,Trevor Keels,1610612748,G,starter
 1642066,Myron Gardner,1610612748,F,starter
-1642857,Kasparas Jakučionis,1610612748,G,starter
+1642857,Kasparas Jakučionis,1610612749,G,starter
 1642884,Vladislav Goldin,1610612748,C,starter
 1630828,Alex Antetokounmpo,1610612749,F,starter
 1642504,Cormac Ryan,1610612749,G,starter
@@ -616,7 +616,7 @@ player_id,full_name,team_id,position,role
 1642874,Danny Wolf,1610612751,F,starter
 1642962,Drake Powell,1610612751,G,starter
 1642856,Egor Dëmin,1610612751,G,starter
-1641869,Malachi Smith,1610612751,G,starter
+1641869,Malachi Smith,1610612761,G,starter
 1643052,Chaney Johnson,1610612751,G,starter
 1642879,Ben Saraf,1610612751,G,starter
 1642849,Nolan Traore,1610612751,G,starter
@@ -624,10 +624,10 @@ player_id,full_name,team_id,position,role
 1631457,Alex Morales,1610612753,G,starter
 1642859,Jase Richardson,1610612753,G,starter
 1642869,Noah Penda,1610612753,G,starter
-1643007,Taelon Peter,1610612754,G,starter
-1642880,Kam Jones,1610612754,G,starter
+1643007,Taelon Peter,1610612759,G,starter
+1642880,Kam Jones,1610612749,G,starter
 1641771,Jalen Slawson,1610612754,F,starter
-1641780,Johni Broome,1610612755,F,starter
+1641780,Johni Broome,1610612746,F,starter
 1642845,VJ Edgecombe,1610612755,G,starter
 1642863,Khaman Maluach,1610612756,C,starter
 1642886,Koby Brea,1610612756,G,starter
@@ -635,7 +635,7 @@ player_id,full_name,team_id,position,role
 1642853,Rasheer Fleming,1610612756,F,starter
 1643047,CJ Huntley,1610612756,F,starter
 1643257,Jayson Kent,1610612757,F,starter
-1631126,Caleb Love,1610612757,G,starter
+1631126,Caleb Love,1610612755,G,starter
 1642959,Chris Youngblood,1610612757,G,starter
 1642905,Yang Hansen,1610612757,C,starter
 1642363,Nique Clifford,1610612758,G,starter
@@ -689,3 +689,86 @@ player_id,full_name,team_id,position,role
 1631351,Lucas Williamson,1610612763,F,starter
 1630286,Trevon Scott,1610612751,F,starter
 1643253,Toby Okani,1610612763,F,starter
+1643412,Kingston Flemings,1610612737,G,starter
+1643539,Henri Veesaar,1610612737,C,starter
+1643544,Zuby Ejiofor,1610612737,F,starter
+1641759,Dillon Mitchell,1610612738,F,starter
+1642870,Milos Uzan,1610612738,G,starter
+1643620,Tucker DeVries,1610612738,F,starter
+1643416,Chris Cenac Jr.,1610612738,F,starter
+1643509,Meleek Thomas,1610612739,G,starter
+1626209,Mario Hezonja,1610612739,F,starter
+1643640,"Ernest Udeh, Jr.",1610612739,C,starter
+1643738,Malik Dia,1610612740,F,starter
+1643555,Jaron Pierre Jr.,1610612740,G,starter
+1643591,Tobe Awaka,1610612741,F,starter
+1643637,Jaylin Sellers,1610612741,F,starter
+1643517,Dailyn Swain,1610612741,F,starter
+1643410,Caleb Wilson,1610612741,F,starter
+1641844,Tarik Biberovic,1610612742,F,starter
+1643585,Vsevolod Ishchenko,1610612742,G,starter
+1643516,Morez Johnson,1610612742,F,starter
+1643588,Tobi Lawal,1610612742,F,starter
+1643547,Sergio de Larrea,1610612742,G,starter
+1642350,Trevon Brazile,1610612743,F,starter
+1643624,Bryce Hopkins,1610612743,F,starter
+1643813,Alpha Diallo,1610612743,F,starter
+1642865,Yaxel Lendeborg,1610612744,F,starter
+1643650,Lajae Jones,1610612744,G,starter
+1643570,Bruce Thornton,1610612745,G,starter
+1643572,Rafael Castro,1610612745,C,starter
+1643595,Quadir Copeland,1610612745,G,starter
+1642394,Baba Miller,1610612746,F,starter
+1643568,Nick Martinelli,1610612746,F,starter
+1643712,Narcisse Ngoy,1610612746,C,starter
+1643413,Keaton Wagler,1610612746,G,starter
+1642481,Jamarion Sharp,1610612746,C,starter
+1641751,Arthur Kaluma,1610612747,F,starter
+1643758,AK Okereke,1610612747,F,starter
+1643418,Cameron Carr,1610612747,G,starter
+1643727,J'Vonne Hadley,1610612748,F,starter
+1643553,Ryan Conwell,1610612748,G,starter
+1643621,Tre Donaldson,1610612748,G,starter
+1641831,Malique Lewis,1610612749,F,starter
+1643417,Nate Ament,1610612749,F,starter
+1643415,Brayden Burries,1610612749,G,starter
+1642881,Bogoljub Marković,1610612749,F,starter
+1643626,Trey Kaufman-Renn,1610612750,F,starter
+1642912,Isaiah Evans,1610612750,F,starter
+1643414,Mikel Brown Jr.,1610612751,G,starter
+1643538,Joshua Jefferson,1610612751,F,starter
+1643548,Tyler Bilodeau,1610612751,F,starter
+1643583,Jack Kayil,1610612752,G,starter
+1643589,Tyler Nickel,1610612752,F,starter
+1643593,Izaiyah Nelson,1610612753,F,starter
+1643552,Braden Smith,1610612754,G,starter
+1643575,Duke Miles,1610612755,G,starter
+1642889,Labaron Philon,1610612755,G,starter
+1643520,Koa Peat,1610612756,F,starter
+1643411,Darius Acuff Jr.,1610612758,G,starter
+1642284,Alex Karaban,1610612758,F,starter
+1643567,Emanuel Sharp,1610612758,G,starter
+1643551,Ja'Kobi Gillespie,1610612759,G,starter
+1643576,Maliq Brown,1610612759,F,starter
+1643542,Tarris Reed Jr.,1610612759,C,starter
+1643519,Jayden Quaintance,1610612759,F,starter
+1643717,Josh Dix,1610612760,F,starter
+1642923,Otega Oweh,1610612760,G,starter
+1642892,Bennett Stirtz,1610612760,G,starter
+1643530,Aday Mara,1610612760,C,starter
+1642927,Nate Bittle,1610612761,C,starter
+1643558,Jaden Bradley,1610612761,G,starter
+1643512,Allen Graves,1610612761,F,starter
+1642926,Tamar Bates,1610612762,G,starter
+1643408,Darryn Peterson,1610612762,G,starter
+1643563,Richie Saunders,1610612763,G,starter
+1643409,Cameron Boozer,1610612763,F,starter
+1643510,Karim Lopez,1610612763,F,starter
+1643590,Felix Okpara,1610612764,C,starter
+1643407,AJ Dybantsa,1610612764,F,starter
+1642391,Ugonna Onyenso,1610612765,C,starter
+1643536,Ebuka Okorie,1610612765,G,starter
+1642369,Michael Ajayi,1610612766,G,starter
+1643573,Kylan Boswell,1610612766,G,starter
+1643515,Christian Anderson,1610612766,G,starter
+1643419,Hannes Steinbach,1610612766,F,starter
