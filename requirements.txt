@@ -1,0 +1,7 @@
+# Core pipeline (generate_seed_data.py, load_db.py, prop_model.py, cli.py)
+# uses only the Python standard library — nothing to install to run
+# the demo end-to-end.
+
+# Only needed for scripts/fetch_data.py (pulling real live NBA data):
+# nba_api>=1.4.1
+# pandas>=2.0.0

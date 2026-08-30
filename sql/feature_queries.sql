@@ -1,0 +1,53 @@
+-- ============================================================
+-- NBA Prop Analyzer — Feature Views (reference copy)
+--
+-- These views are actually created by sql/schema.sql (so the
+-- whole database builds in one script). This file is a readable,
+-- standalone reference for what each view does and some example
+-- ad-hoc queries you can run against them directly.
+-- ============================================================
+
+-- v_player_rolling_stats
+--   One row per player per game played, ordered most-recent-first
+--   (games_ago = 1 is the player's last game). The prop model uses
+--   this to build recency-weighted form (e.g. "last 10 games").
+--
+-- v_player_home_away_splits
+--   Per-player average stats split by home vs. away.
+--
+-- v_team_defense_rating
+--   Points allowed per game by team + a 0-1 percentile
+--   (1.0 = worst defense in the league, 0.0 = best defense).
+--
+-- v_team_position_defense
+--   Points/rebounds/assists a team allows broken out by the
+--   position (G/F/C) of the opposing player — the proxy for
+--   "how does this defense handle a player like this one."
+--
+-- v_player_vs_opponent_history
+--   A player's historical average stats specifically against one
+--   opponent franchise (small sample — used as a minor signal).
+
+-- ------------------------------------------------------------
+-- Example: Shai Gilgeous-Alexander's last 10 games
+-- ------------------------------------------------------------
+-- SELECT game_date, opponent_abbr, is_home, minutes, points, assists
+-- FROM v_player_rolling_stats
+-- WHERE full_name = 'Shai Gilgeous-Alexander' AND games_ago <= 10
+-- ORDER BY games_ago;
+
+-- ------------------------------------------------------------
+-- Example: Which teams give up the most points to Guards?
+-- ------------------------------------------------------------
+-- SELECT t.team_name, tpd.avg_points_allowed, tpd.player_games_faced
+-- FROM v_team_position_defense tpd
+-- JOIN teams t ON t.team_id = tpd.team_id
+-- WHERE tpd.position = 'G'
+-- ORDER BY tpd.avg_points_allowed DESC;
+
+-- ------------------------------------------------------------
+-- Example: League-wide defense ranking
+-- ------------------------------------------------------------
+-- SELECT team_name, avg_points_allowed, defense_percentile
+-- FROM v_team_defense_rating
+-- ORDER BY defense_percentile;
