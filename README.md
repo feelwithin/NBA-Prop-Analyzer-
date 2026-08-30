@@ -12,6 +12,10 @@ how well the opponent defends players at that position.
 > Sports outcomes are inherently uncertain — treat the output as one
 > input among many, not a guarantee.
 
+See **[WRITEUP.md](WRITEUP.md)** for a shorter, portfolio-facing
+summary of the methodology and validation results (including the
+calibration chart) — this README is the full technical reference.
+
 ## What it does
 
 Given a player, a stat (points, rebounds, assists, steals, blocks,
@@ -115,6 +119,18 @@ buckets next to the actual hit rate in each bucket, which should
 track closely if the model is honest about its own confidence.
 Full per-pick results are also written to
 `data/output/backtest_results.csv`.
+
+For a visual version of that table (a reliability chart — predicted
+probability vs. actual hit rate, bucket size shown as point size),
+run:
+
+```bash
+python3 scripts/make_calibration_chart.py
+```
+
+after `backtest.py` — it reads `data/output/backtest_results.csv` and
+writes `assets/calibration_chart.png`. See **Calibration history**
+below for what this project's own backtest runs found and fixed.
 
 ## Data
 
@@ -244,6 +260,30 @@ Without `--append`, `fetch_data.py` overwrites `data/seed/*.csv`
 with just the one season you fetched — use that if you want to
 start over rather than add on.
 
+### Keeping data fresh automatically
+
+Running `fetch_data.py --append` by hand works, but means the live
+app quietly goes stale (rosters missing recent trades, game logs
+missing last night's games) until someone remembers to run it.
+`.github/workflows/daily-refresh.yml` automates this: once a day it
+figures out the current NBA season from the date, fetches it with
+`--append`, rebuilds the DB and sanity-checks it
+(`scripts/ci_sanity_check.py` — refuses to commit if an unusually
+large fraction of rows had to be skipped, which is what a corrupted
+merge looks like), and pushes the updated `data/seed/*.csv` only if
+something actually changed. Streamlit Community Cloud picks up the
+push and rebuilds the live app's database from the refreshed CSVs on
+its own — no manual `git push` needed day to day.
+
+This needs no setup beyond having the workflow file in the repo and
+GitHub Actions enabled (on by default for a repo you own) — the
+built-in `GITHUB_TOKEN` it uses already has permission to push commits
+back to the same repo. You can trigger it immediately instead of
+waiting for the schedule from the repo's **Actions** tab → **Daily
+data refresh** → **Run workflow**. Since this pulls real rosters and
+box scores, it only does something useful once you're on real fetched
+data rather than the synthetic demo dataset.
+
 Or query the SQL views directly:
 ```bash
 python3 -c "
@@ -358,34 +398,97 @@ nba-prop-analyzer/
 └── README.md
 ```
 
-## Known limitation: a small remaining bias in the recency-weighted mean
+## Calibration history: three rounds of fixes
 
 Backtesting against real 2024-25 data (see **Validation** above) went
-through two real rounds of fixes: flooring the std (modest effect —
-the effective sample size wasn't actually the bottleneck) and, more
-substantially, dampening the matchup-defense adjustment the same way
-the home/away adjustment already was (this closed most of the
-overconfidence gap: Brier score improved from 0.2491 to 0.2473, and
-the model no longer produces wildly overconfident extreme
-predictions).
+through three real rounds of fixes, each one caught by the same
+process — run `scripts/backtest.py`, read the calibration table, fix
+what it shows, re-run:
 
-A smaller pattern remains: predictions below 50% run a few points low
-(actual outcomes hit more than predicted) while predictions above 50%
-run a few points high (actual outcomes hit less than predicted).
-Likely cause: the recency-weighted mean gives extra weight to a
-player's most recent games, and hot stretches tend to cool back
-toward a player's real season level ("regression to the mean") — the
-model corrects for this on the matchup/home-away multipliers but not
-on the base recency-weighted mean itself. The principled fix is to
-shrink the recency-weighted mean toward the season-long mean in
-proportion to sample size (an empirical-Bayes-style estimator, the
-same idea already used for the dampened adjustments), rather than
-hand-tuning another constant against a single backtest run — doing
-the latter risks overfitting the model to one dataset/season instead
-of actually improving it.
+1. **Flooring the std** (modest effect — the effective sample size
+   wasn't actually the bottleneck).
+2. **Dampening the matchup-defense adjustment** the same way the
+   home/away adjustment already was — this closed most of the
+   overconfidence gap (Brier score improved from 0.2491 to 0.2473,
+   and the model stopped producing wildly overconfident extreme
+   predictions).
+3. **Shrinking the recency-weighted mean toward the full-season
+   mean**, in proportion to sample size (`_shrink_to_season_mean` in
+   `prop_model.py`). After step 2, a smaller pattern remained:
+   predictions below 50% ran a few points low and predictions above
+   50% ran a few points high relative to actual outcomes — consistent
+   with "regression to the mean" (a hot/cold recent stretch partially
+   reverting). The recency-weighted mean was getting full weight
+   regardless of how much recent evidence backed it, while the
+   matchup/home-away multipliers were already dampened for exactly
+   this kind of overconfidence. Applying the same idea to the base
+   mean — an empirical-Bayes-style blend, `n / (n + k)` weight on the
+   recent estimate vs. `k / (n + k)` on the season baseline, with
+   `k=10` chosen as a round number of the same order as the half-life
+   rather than fit to one dataset — is the principled fix, as opposed
+   to hand-tuning yet another constant against a single backtest run
+   and risking overfitting the model to one dataset/season instead of
+   actually improving it.
+
+On the bundled synthetic demo dataset this run reported a Brier score
+of 0.2281 (baseline 0.2500) across ~41,700 backtested picks, with the
+well-populated buckets (roughly 2,000+ picks each) landing within a
+couple of points of perfect calibration — see the chart below,
+generated by `scripts/make_calibration_chart.py`.
+
+![Calibration chart](assets/calibration_chart.png)
+
+**The honest result on real data — including a methodology bug found
+along the way, and a fix that turned out not to be the answer.**
+While validating this fix, `backtest.py`'s synthetic "fair line" was
+found to be `round()` of the model's raw (unshrunk) trailing average
+while the probability was computed from the shrunk one — a mismatch
+that has nothing to do with real calibration but looks exactly like
+it. On real fetched data (both loaded seasons merged, ~164,000
+backtested picks) that bug alone produced a Brier score barely above
+the 0.5-baseline (0.2469, 54.2% directional accuracy). Fixing it — so
+the line and the prediction come from the same estimate — moved that
+number to **0.2467, 54.1% accuracy: essentially unchanged.**
+
+That result matters more than it looks like it should: it means the
+line-anchoring bug, while real and worth fixing, was NOT the cause of
+the gap, and neither, apparently, is the regression-to-the-mean
+shrinkage this whole investigation started from — shrinkage barely
+moved the real-data numbers at all, the same as it barely moved the
+synthetic ones. Two things stand out in the real calibration table
+that the synthetic run doesn't show: (1) the bulk of test cases land
+in the 40-60% predicted range by construction, since the synthetic
+line is set from the model's own current estimate — this backtest
+design is better at revealing directional bias in the well-populated
+middle buckets than at stress-testing extreme-confidence claims, which
+end up backed by very few real-data cases; and (2) even in those
+well-populated middle buckets, a modest bias remains in the same
+direction documented before (predictions pulled a few points away from
+50% relative to what actually happens) — small enough that guessing
+its cause without more evidence would be exactly the kind of
+single-dataset overfitting this section has already warned against
+once. This is left open rather than patched with another guess — see
+**Roadmap** below.
+
+Both `backtest.py`'s line generation and `prop_model.py` itself are
+unaffected in the live app by any of this — a live prediction's line
+always comes from the prop you type in, never from the model's own
+estimate — so none of this changes what the deployed app tells you
+today. It changes how much to trust the app's *stated* confidence
+level at the margins, which is exactly why this section exists instead
+of just shipping a Brier score and moving on.
 
 ## Roadmap / possible extensions
 
+- **Track down the remaining real-data calibration bias**: a modest
+  gap (predictions running a few points more extreme than actual
+  outcomes) survived both the dampening fixes and the shrinkage fix —
+  see **Calibration history** above. Worth investigating with real
+  evidence rather than another guess: split the calibration table by
+  season (is it worse for the newer, thinner-sample season?), by stat
+  (points vs. the lower-count stats using the same normal
+  approximation?), or check whether the std estimate itself needs
+  the same kind of shrinkage the mean just got.
 - **Individual defender matchups**: pull `leagueseasonmatchups` /
   `matchupsrollup` from `nba_api` to know specifically how a player
   performs against a given primary defender, not just team-level

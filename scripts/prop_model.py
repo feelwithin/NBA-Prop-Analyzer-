@@ -203,6 +203,39 @@ def _recency_weighted_stats(rows, stat, half_life=8):
     return weighted_mean, max(weighted_std, plain_std), len(values)
 
 
+SHRINKAGE_K = 10  # see _shrink_to_season_mean docstring
+
+
+def _shrink_to_season_mean(weighted_mean, n, full_season_mean, k=SHRINKAGE_K):
+    """Empirical-Bayes-style shrinkage: pulls the recency-weighted mean
+    partway back toward the player's full-season mean, in proportion to
+    how much recent evidence backs it up. With n games behind the
+    recency-weighted estimate, the blend weight is n / (n + k) on the
+    recent estimate and k / (n + k) on the season mean — so a
+    well-supported recent trend (large n) is barely touched, while a
+    thin one (small n) leans more on the season-long baseline.
+
+    Why this exists: backtesting (scripts/backtest.py, see README's
+    Validation section) found predictions below 50% running low and
+    predictions above 50% running high relative to actual outcomes —
+    consistent with "regression to the mean": the recency-weighted
+    mean rides a player's hot/cold stretch, and stretches partially
+    revert. The matchup and home/away adjustments were already
+    dampened for the same kind of overconfidence; this applies the
+    same idea to the base mean itself.
+
+    k=10 is a round number of the same order as the half-life (8),
+    not fit against a specific backtest run — the README's Known
+    Limitation section explicitly flags hand-tuning a constant to one
+    dataset as a way to overfit rather than actually improve the
+    model, so this is a principled default, not a result of grid
+    search. Re-run scripts/backtest.py after changing it if you want
+    to see the effect on your own data."""
+    if n + k == 0:
+        return weighted_mean
+    return (n * weighted_mean + k * full_season_mean) / (n + k)
+
+
 MATCHUP_DAMPEN = 0.35  # see docstring below
 
 
@@ -327,15 +360,27 @@ def estimate_prop_probability(
         weighted_mean, weighted_std, n = _recency_weighted_stats(rows, stat, half_life)
         season_mean = sum(_stat_value(r, stat) for r in rows) / len(rows)
 
+        # Full-season mean (ALL games this season, not just the recent_n
+        # window) is the shrinkage target — a longer, more stable
+        # baseline than `season_mean` above, which is scoped to the same
+        # recent window as the recency-weighted estimate and so isn't
+        # independent evidence to shrink toward.
+        full_season_rows = conn.execute(
+            "SELECT * FROM v_player_rolling_stats WHERE player_id = ? AND season = ?",
+            (player["player_id"], season),
+        ).fetchall()
+        full_season_mean = sum(_stat_value(r, stat) for r in full_season_rows) / len(full_season_rows)
+        shrunk_mean = _shrink_to_season_mean(weighted_mean, n, full_season_mean)
+
         # Floor the std so a hyper-consistent small sample doesn't produce
         # an unrealistically overconfident (near 0%/100%) probability.
-        floor_std = max(1.5, 0.25 * weighted_mean)
+        floor_std = max(1.5, 0.25 * shrunk_mean)
         eff_std = max(weighted_std, floor_std)
 
         matchup_factor = _matchup_factor(conn, player["position"], stat, opponent["team_id"], season)
         home_away_factor, ha_note = _home_away_factor(conn, player["player_id"], stat, is_home, season)
 
-        adjusted_mean = weighted_mean * matchup_factor * home_away_factor
+        adjusted_mean = shrunk_mean * matchup_factor * home_away_factor
         adjusted_std = eff_std
 
         # Continuity correction: P(X >= line) for a discrete stat

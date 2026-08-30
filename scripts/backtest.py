@@ -33,7 +33,7 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from prop_model import _normal_cdf, DB_PATH  # noqa: E402
+from prop_model import _normal_cdf, _shrink_to_season_mean, DB_PATH  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = ROOT / "data" / "output"
@@ -192,11 +192,29 @@ def run_backtest(min_prior_games, min_defense_games, seed, season=None):
                 ha_factors = _home_away_factor(history, r["is_home"])
                 ha_factor = 1.0 if stat == "pra" else ha_factors.get(stat, 1.0)
 
-                adjusted_mean = weighted_mean * factor * ha_factor
-                floor_std = max(1.5, 0.25 * weighted_mean)
+                # Shrink the recency-weighted mean toward the full
+                # point-in-time season-to-date mean (mirrors prop_model.py's
+                # _shrink_to_season_mean — see its docstring for why).
+                if stat == "pra":
+                    full_season_mean = sum(h["points"] + h["rebounds"] + h["assists"] for h in history) / len(history)
+                else:
+                    full_season_mean = sum(h[stat] for h in history) / len(history)
+                shrunk_mean = _shrink_to_season_mean(weighted_mean, n, full_season_mean)
+
+                adjusted_mean = shrunk_mean * factor * ha_factor
+                floor_std = max(1.5, 0.25 * shrunk_mean)
                 adjusted_std = max(weighted_std, floor_std)
 
-                line = round(weighted_mean)
+                # The synthetic "fair line" MUST be anchored to the same
+                # central estimate (shrunk_mean) the probability is computed
+                # from, not the raw weighted_mean — otherwise shrinkage
+                # introduces a systematic offset between the line and the
+                # model's own mean that has nothing to do with real
+                # calibration, and looks exactly like a miscalibration bias
+                # in the results (this was caught by re-running against real
+                # data: it reproduced, and worsened, the pre-shrinkage bias
+                # pattern instead of closing it).
+                line = round(shrunk_mean)
                 if line <= 0:
                     continue
                 direction = "over" if rng.random() < 0.5 else "under"
