@@ -121,7 +121,23 @@ def _stat_value(row, stat):
 
 def _recency_weighted_stats(rows, stat, half_life=8):
     """Exponential-decay weighting: a game `games_ago` back gets weight
-    0.5 ** (games_ago / half_life). Returns (weighted_mean, weighted_std, n)."""
+    0.5 ** (games_ago / half_life). Returns (weighted_mean, std, n).
+
+    The returned std is max(recency-weighted std, plain unweighted std
+    over the same games). Why: exponential decay concentrates weight on
+    a handful of recent games, which shrinks the EFFECTIVE sample size
+    used for the variance estimate well below `n` — and a small sample
+    systematically underestimates true variance, especially over a
+    short recent stretch that can look artificially consistent (a
+    "hot streak" reads as low volatility even though the player's real
+    game-to-game swings, from blowouts, back-to-backs, minutes
+    changes, etc., are wider). Backtesting against real NBA data
+    (see scripts/backtest.py) showed this made the live model
+    overconfident — high-confidence picks were hitting well below
+    their stated probability — so we floor the std at the plain
+    full-window sample std, which doesn't have that shrinkage problem,
+    to keep the recency-weighted MEAN (still useful for trend) without
+    inheriting an artificially tight spread."""
     values, weights = [], []
     for r in rows:
         v = _stat_value(r, stat)
@@ -136,7 +152,12 @@ def _recency_weighted_stats(rows, stat, half_life=8):
     weighted_mean = sum(v * w for v, w in zip(values, weights)) / total_w
     weighted_var = sum(w * (v - weighted_mean) ** 2 for v, w in zip(values, weights)) / total_w
     weighted_std = math.sqrt(weighted_var)
-    return weighted_mean, weighted_std, len(values)
+
+    plain_mean = sum(values) / len(values)
+    plain_var = sum((v - plain_mean) ** 2 for v in values) / len(values)
+    plain_std = math.sqrt(plain_var)
+
+    return weighted_mean, max(weighted_std, plain_std), len(values)
 
 
 def _matchup_factor(conn, position, stat, opponent_team_id):

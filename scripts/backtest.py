@@ -45,7 +45,11 @@ RECENT_N = 20
 
 def _weighted_mean_std(history, key, half_life=HALF_LIFE, recent_n=RECENT_N):
     """history: list of dicts, most-recent-last. Uses up to the last
-    `recent_n` entries, weighting recency the same way prop_model does."""
+    `recent_n` entries, weighting recency the same way prop_model does.
+    Mirrors prop_model._recency_weighted_stats: std is floored at the
+    plain (unweighted) sample std over the same window, since the
+    recency-weighted estimate has a small effective sample size and
+    tends to understate real variance — see that function's docstring."""
     recent = history[-recent_n:]
     n = len(recent)
     values, weights = [], []
@@ -57,7 +61,13 @@ def _weighted_mean_std(history, key, half_life=HALF_LIFE, recent_n=RECENT_N):
         return 0.0, 0.0, 0
     mean = sum(v * w for v, w in zip(values, weights)) / total_w
     var = sum(w * (v - mean) ** 2 for v, w in zip(values, weights)) / total_w
-    return mean, math.sqrt(var), n
+    weighted_std = math.sqrt(var)
+
+    plain_mean = sum(values) / len(values)
+    plain_var = sum((v - plain_mean) ** 2 for v in values) / len(values)
+    plain_std = math.sqrt(plain_var)
+
+    return mean, max(weighted_std, plain_std), n
 
 
 def _defense_factor(team_position_stats, position, team_id, key):
@@ -192,6 +202,7 @@ def run_backtest(min_prior_games, min_defense_games, seed):
 
 
 def _weighted_mean_pra(history, half_life=HALF_LIFE, recent_n=RECENT_N):
+    """Same std-flooring logic as _weighted_mean_std — see its docstring."""
     recent = history[-recent_n:]
     values, weights = [], []
     for i, h in enumerate(reversed(recent)):
@@ -202,7 +213,13 @@ def _weighted_mean_pra(history, half_life=HALF_LIFE, recent_n=RECENT_N):
         return 0.0, 0.0, 0
     mean = sum(v * w for v, w in zip(values, weights)) / total_w
     var = sum(w * (v - mean) ** 2 for v, w in zip(values, weights)) / total_w
-    return mean, math.sqrt(var), len(recent)
+    weighted_std = math.sqrt(var)
+
+    plain_mean = sum(values) / len(values)
+    plain_var = sum((v - plain_mean) ** 2 for v in values) / len(values)
+    plain_std = math.sqrt(plain_var)
+
+    return mean, max(weighted_std, plain_std), len(recent)
 
 
 def summarize(results):
