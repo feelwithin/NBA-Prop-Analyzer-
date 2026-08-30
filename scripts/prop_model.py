@@ -395,6 +395,94 @@ def combine_probabilities(results):
     return round(combined, 4)
 
 
+def _player_team_in_season(conn, player_id, season):
+    """Which team a player actually suited up for IN THIS SEASON, from
+    their own game logs — not players.team_id, which only reflects
+    their most recently fetched roster and would be wrong for a player
+    who was traded, or for an older season looked at after a trade.
+    Falls back to players.team_id if the player has no logs that season
+    (e.g. a line hasn't been checked yet, or very sparse data)."""
+    row = conn.execute(
+        """
+        SELECT team_id, COUNT(*) AS n FROM player_game_logs
+        WHERE player_id = ? AND season = ?
+        GROUP BY team_id ORDER BY n DESC LIMIT 1
+        """,
+        (player_id, season),
+    ).fetchone()
+    if row:
+        return row["team_id"]
+    fallback = conn.execute("SELECT team_id FROM players WHERE player_id = ?", (player_id,)).fetchone()
+    return fallback["team_id"] if fallback else None
+
+
+def estimate_same_game_parlay(
+    legs, team_a_abbr, team_b_abbr, home_team_abbr=None,
+    recent_n=20, half_life=8, conn=None, season=None,
+):
+    """A parlay across MULTIPLE PLAYERS in the same game, unlike
+    estimate_prop_probability/combine_probabilities which only handle
+    several props for one player. `legs` is a list of dicts:
+        {"player": "...", "stat": "PTS", "line": 25, "direction": "over"}
+    Each player's opponent is figured out automatically from which of
+    the two given teams they actually played for THAT SEASON (handles
+    trades correctly — see _player_team_in_season) — you don't specify
+    an opponent per leg. home_team_abbr is optional context for the
+    home/away adjustment (must be team_a_abbr or team_b_abbr if given).
+
+    Returns (results, combined_probability). results is a list of
+    PropResult, one per leg, in the same order as `legs`. Same
+    independence caveat as combine_probabilities applies, plus same-game
+    correlation is typically even stronger between teammates/opponents
+    than between two props on the same player — treat the combined
+    number as a rough estimate, not a precise joint probability."""
+    own_conn = conn is None
+    conn = conn or _connect()
+    try:
+        season = _resolve_season(conn, season)
+        team_a = _find_team(conn, team_a_abbr)
+        team_b = _find_team(conn, team_b_abbr)
+        if team_a["team_id"] == team_b["team_id"]:
+            raise ValueError(f"'{team_a_abbr}' and '{team_b_abbr}' resolved to the same team — need two different teams.")
+
+        home_team_id = None
+        if home_team_abbr is not None:
+            home_team = _find_team(conn, home_team_abbr)
+            if home_team["team_id"] not in (team_a["team_id"], team_b["team_id"]):
+                raise ValueError(f"home_team '{home_team_abbr}' must be one of the two teams in this game ({team_a_abbr}/{team_b_abbr}).")
+            home_team_id = home_team["team_id"]
+
+        results = []
+        for leg in legs:
+            player = _find_player(conn, leg["player"])
+            player_team_id = _player_team_in_season(conn, player["player_id"], season)
+
+            if player_team_id == team_a["team_id"]:
+                opponent = team_b
+            elif player_team_id == team_b["team_id"]:
+                opponent = team_a
+            else:
+                raise ValueError(
+                    f"{player['full_name']} didn't play for {team_a_abbr} or {team_b_abbr} in {season} "
+                    f"— check the player name/team/season."
+                )
+
+            is_home = None if home_team_id is None else (player_team_id == home_team_id)
+
+            r = estimate_prop_probability(
+                player["full_name"], leg["stat"], leg["line"], opponent["abbreviation"],
+                direction=leg.get("direction", "over"), is_home=is_home,
+                recent_n=recent_n, half_life=half_life, conn=conn, season=season,
+            )
+            results.append(r)
+
+        combined = combine_probabilities(results)
+        return results, combined
+    finally:
+        if own_conn:
+            conn.close()
+
+
 if __name__ == "__main__":
     conn = _connect()
     print("Seasons available:", list_seasons(conn))

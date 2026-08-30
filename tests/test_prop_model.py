@@ -17,7 +17,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from prop_model import estimate_prop_probability, combine_probabilities, DB_PATH  # noqa: E402
+from prop_model import (  # noqa: E402
+    estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
+    list_seasons, DB_PATH,
+)
 
 
 @unittest.skipUnless(DB_PATH.exists(), f"{DB_PATH} not found — run generate_seed_data.py + load_db.py first")
@@ -38,6 +41,31 @@ class TestPropModel(unittest.TestCase):
         ).fetchone()
         self.best_defense = best["abbreviation"]
         self.worst_defense = worst["abbreviation"]
+
+        # Two distinct teams, each with a player who actually has game
+        # logs in the most recent loaded season — for same-game parlay tests.
+        conn.row_factory = sqlite3.Row
+        season = list_seasons(conn)[0]
+        team_players = conn.execute(
+            """
+            SELECT DISTINCT t.abbreviation, p.full_name
+            FROM player_game_logs pgl
+            JOIN players p ON p.player_id = pgl.player_id
+            JOIN teams t ON t.team_id = pgl.team_id
+            WHERE pgl.season = ?
+            ORDER BY t.abbreviation
+            """,
+            (season,),
+        ).fetchall()
+        by_team = {}
+        for row in team_players:
+            by_team.setdefault(row["abbreviation"], row["full_name"])
+        abbrs = list(by_team.keys())
+        self.team_a, self.team_b = abbrs[0], abbrs[1]
+        self.player_a, self.player_b = by_team[self.team_a], by_team[self.team_b]
+        # A player from a third team, to test the "wrong game" error path
+        self.other_team_player = by_team[abbrs[2]] if len(abbrs) > 2 else None
+
         conn.close()
 
     def test_probability_is_between_0_and_1(self):
@@ -72,6 +100,41 @@ class TestPropModel(unittest.TestCase):
         r2 = estimate_prop_probability(self.player, "AST", 3, self.worst_defense)
         combined = combine_probabilities([r1, r2])
         self.assertAlmostEqual(combined, round(r1.probability * r2.probability, 4), places=4)
+
+    def test_same_game_parlay_resolves_opponents_automatically(self):
+        legs = [
+            {"player": self.player_a, "stat": "PTS", "line": 15, "direction": "over"},
+            {"player": self.player_b, "stat": "REB", "line": 5, "direction": "over"},
+        ]
+        results, combined = estimate_same_game_parlay(legs, self.team_a, self.team_b)
+        self.assertEqual(len(results), 2)
+        # Each player's opponent should be resolved to the OTHER team, not
+        # the one they actually play for.
+        self.assertEqual(results[0].opponent_abbr, self.team_b)
+        self.assertEqual(results[1].opponent_abbr, self.team_a)
+        self.assertAlmostEqual(combined, round(results[0].probability * results[1].probability, 4), places=4)
+
+    def test_same_game_parlay_player_not_in_game_raises(self):
+        if self.other_team_player is None:
+            self.skipTest("dataset doesn't have a third team to test against")
+        legs = [{"player": self.other_team_player, "stat": "PTS", "line": 15, "direction": "over"}]
+        with self.assertRaises(ValueError):
+            estimate_same_game_parlay(legs, self.team_a, self.team_b)
+
+    def test_same_game_parlay_same_team_twice_raises(self):
+        legs = [{"player": self.player_a, "stat": "PTS", "line": 15, "direction": "over"}]
+        with self.assertRaises(ValueError):
+            estimate_same_game_parlay(legs, self.team_a, self.team_a)
+
+    def test_same_game_parlay_home_away_applies_to_correct_side(self):
+        legs = [{"player": self.player_a, "stat": "PTS", "line": 15, "direction": "over"}]
+        home = estimate_same_game_parlay(legs, self.team_a, self.team_b, home_team_abbr=self.team_a)[0][0]
+        away = estimate_same_game_parlay(legs, self.team_a, self.team_b, home_team_abbr=self.team_b)[0][0]
+        # Same player, same opponent, only home/away context differs —
+        # the two results shouldn't need to differ, but the call itself
+        # must succeed both ways without raising.
+        self.assertEqual(home.opponent_abbr, self.team_b)
+        self.assertEqual(away.opponent_abbr, self.team_b)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,10 @@ or points+rebounds+assists), a line, and an opponent, it returns:
 - **Combined probability** for multiple props on the same
   player/game (a simple "parlay" check), with an explicit caveat
   that this assumes independence between legs
+- **Same-game parlays across multiple players** — pick the two teams
+  playing each other, then add props for any players on either
+  roster; each player's opponent is figured out automatically. See
+  **Same-game parlays** below.
 
 ```
 $ python scripts/cli.py --player "Shai Gilgeous-Alexander" --opponent DEN --prop PTS:30 --prop AST:4
@@ -167,6 +171,43 @@ CLI options:
 --stat STAT --line N  single prop
 --prop STAT:LINE      repeatable, for multi-leg parlay checks
 ```
+
+## Same-game parlays
+
+`--prop`/`combine_probabilities` above only combine multiple props for
+**one player**. A same-game parlay across **different players** in the
+same game is a separate mode, in both the CLI and the app, because it
+needs a different piece of context: which two teams are actually
+playing each other, so each player's opponent can be figured out
+automatically instead of you specifying it per leg (and so a stray
+player from an unrelated game gets caught as an error, not silently
+graded against the wrong opponent).
+
+CLI:
+```bash
+python3 scripts/cli.py --team-a DEN --team-b BOS --home-team BOS \
+    --leg "Shai Gilgeous-Alexander:PTS:30" \
+    --leg "Jaylen Brown:PTS:20:under" \
+    --leg "Nikola Jokic:PRA:45"
+```
+- `--team-a` / `--team-b`: the two teams in the game (any order)
+- `--home-team`: optional, must be one of the two — enables the
+  home/away adjustment for whichever players are on that team
+- `--leg`: repeatable, `PLAYER:STAT:LINE` or `PLAYER:STAT:LINE:DIRECTION`
+  (direction defaults to `over`) — mix players from either team freely
+- Don't combine this mode with `--player`/`--opponent`/`--stat`/`--prop`;
+  use `--leg` for every player instead
+
+Web app: the **Same-game parlay** tab (next to **Single player**) works
+the same way — pick Team A and Team B, optionally which one is home,
+then add a row per player/prop, mixing players from either roster.
+
+Same caveat as any parlay: the combined probability assumes
+independence between legs. This matters even more here than for a
+single player's props — a big night from one player and a rough one
+for a teammate (or a big defensive night from an opponent) are often
+correlated in real games, so treat the combined number as a rough
+estimate, not a precise joint probability.
 
 ## Adding a new season (keeping your existing data)
 
