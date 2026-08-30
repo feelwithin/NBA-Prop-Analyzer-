@@ -260,29 +260,37 @@ Without `--append`, `fetch_data.py` overwrites `data/seed/*.csv`
 with just the one season you fetched — use that if you want to
 start over rather than add on.
 
-### Keeping data fresh automatically
+### Keeping data fresh
 
-Running `fetch_data.py --append` by hand works, but means the live
-app quietly goes stale (rosters missing recent trades, game logs
-missing last night's games) until someone remembers to run it.
-`.github/workflows/daily-refresh.yml` automates this: once a day it
-figures out the current NBA season from the date, fetches it with
-`--append`, rebuilds the DB and sanity-checks it
-(`scripts/ci_sanity_check.py` — refuses to commit if an unusually
-large fraction of rows had to be skipped, which is what a corrupted
-merge looks like), and pushes the updated `data/seed/*.csv` only if
-something actually changed. Streamlit Community Cloud picks up the
-push and rebuilds the live app's database from the refreshed CSVs on
-its own — no manual `git push` needed day to day.
+Running `fetch_data.py --append` by hand keeps the live app current
+(rosters catching recent trades, game logs catching last night's
+games) — do this whenever you want an update.
 
-This needs no setup beyond having the workflow file in the repo and
-GitHub Actions enabled (on by default for a repo you own) — the
-built-in `GITHUB_TOKEN` it uses already has permission to push commits
-back to the same repo. You can trigger it immediately instead of
-waiting for the schedule from the repo's **Actions** tab → **Daily
-data refresh** → **Run workflow**. Since this pulls real rosters and
-box scores, it only does something useful once you're on real fetched
-data rather than the synthetic demo dataset.
+A GitHub Actions workflow that runs this on a daily schedule was
+tried and deliberately abandoned, which is worth documenting rather
+than quietly deleting: `nba_api` calls `stats.nba.com`, and that API
+blocks requests from cloud/datacenter IP ranges — every single
+request timed out when run from a GitHub-hosted runner (Microsoft
+Azure IPs), regardless of retries. This isn't a bug in this project's
+code; it's the same reason plenty of sports-data tools document
+"doesn't work from AWS/Azure/GCP." Making it work would mean either
+running the schedule from a machine with a real residential IP (a
+self-hosted GitHub Actions runner on a machine that's reliably online
+at the scheduled time) or routing through a paid proxy service —
+both more infrastructure than this project's scope calls for, so
+manual refresh is the actual, working answer.
+
+After fetching, `scripts/ci_sanity_check.py` is still worth running
+by hand as a quick check before trusting the result — it rebuilds the
+DB and refuses to proceed quietly if an unusually large fraction of
+rows had to be skipped, which is what a corrupted merge looks like
+(see `check_header_compatible()` in `fetch_data.py` for the
+first-line defense against that same failure mode):
+
+```bash
+python3 scripts/fetch_data.py --season 2025-26 --append
+python3 scripts/ci_sanity_check.py
+```
 
 Or query the SQL views directly:
 ```bash
