@@ -88,8 +88,23 @@ st.markdown(
 )
 
 
+def html(s):
+    """Render a custom HTML/CSS string via st.markdown. Collapses all
+    whitespace runs (including newlines) to single spaces first —
+    Markdown's HTML-block parsing ends at a blank line, and a blank
+    line anywhere inside a multi-line f-string (e.g. one produced by
+    nesting another helper's multi-line return value) silently breaks
+    the block partway through, so the rest renders as literal escaped
+    text instead of HTML. Collapsing whitespace up front makes that
+    failure mode structurally impossible, regardless of how the
+    string was assembled or indented in the source. Safe for both
+    HTML fragments and <style> blocks — neither cares about
+    whitespace between tokens."""
+    st.markdown(" ".join(s.split()), unsafe_allow_html=True)
+
+
 def section(title):
-    st.markdown(f"<div class='section-title'>{title}</div>", unsafe_allow_html=True)
+    html(f"<div class='section-title'>{title}</div>")
 
 
 def initials(name):
@@ -110,12 +125,17 @@ def avatar_html(player_id, name, size=40):
     broken <img> so the fallback div underneath shows through — no JS
     framework needed, just a plain HTML attribute."""
     url = f"https://cdn.nba.com/headshots/nba/latest/1040x760/{player_id}.png"
-    return f"""
+    raw = f"""
     <div class="avatar-wrap" style="width:{size}px;height:{size}px;">
       <div class="avatar-fallback" style="width:{size}px;height:{size}px;font-size:{size*0.4:.0f}px;">{initials(name)}</div>
       <img class="avatar-img" style="width:{size}px;height:{size}px;" src="{url}" onerror="this.style.display='none'" />
     </div>
     """
+    # Collapsed defensively here too — this string is often embedded
+    # inside another multi-line f-string by callers, and a blank line
+    # anywhere in the combined markup breaks unsafe_allow_html rendering
+    # (see the `html()` helper above for the full explanation).
+    return " ".join(raw.split())
 
 
 @st.cache_resource
@@ -209,7 +229,7 @@ def render_result(r):
     verdict_color = "#2ECC71" if r.probability >= 0.5 else "#FF5C5C"
     confidence_level = r.confidence.split(" ")[0]  # e.g. "low (small sample)" -> "low"
 
-    st.markdown(
+    html(
         f"""
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.3rem;">
           {avatar_html(r.player_id, r.player_name, size=44)}
@@ -227,8 +247,7 @@ def render_result(r):
             </div>
           </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
     st.progress(min(max(r.probability, 0.0), 1.0), text=f"{r.probability:.1%} probability")
 
@@ -257,7 +276,7 @@ team_abbr_by_label = {f"{name} ({abbr})": abbr for abbr, name in teams}
 # ---- Header ----
 if LOGO_PATH.exists():
     logo_b64 = base64.b64encode(LOGO_PATH.read_bytes()).decode()
-    st.markdown(
+    html(
         f"""
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:0.15rem;">
           <img src="data:image/png;base64,{logo_b64}" style="width:52px;height:52px;border-radius:50%;flex-shrink:0;" />
@@ -266,8 +285,7 @@ if LOGO_PATH.exists():
             <div class="app-tagline">NBA player prop probabilities, matchup-adjusted</div>
           </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 else:
     st.title("🏀 Nabil's Prop Analyzer")
@@ -321,12 +339,11 @@ with tab_single:
         team_label = st.selectbox("Opponent", team_labels, index=None, placeholder="Pick a team...", key="single_opponent")
 
     if player:
-        st.markdown(
+        html(
             f"""<div style="display:flex;align-items:center;gap:10px;margin:-0.3rem 0 0.6rem 0;">
                   {avatar_html(player_id_by_name[player], player, size=32)}
                   <span style="opacity:0.75;font-size:0.9rem;">{player}</span>
-                </div>""",
-            unsafe_allow_html=True,
+                </div>"""
         )
 
     col3, col4 = st.columns(2)
@@ -339,7 +356,7 @@ with tab_single:
     st.caption("Add one or more props for the same player/game — multiple legs are checked as a combo.")
 
     with st.container(border=True):
-        st.markdown(f"<div class='slip-title'>🎟️ {len(st.session_state.legs)} pick(s) on this slip</div>", unsafe_allow_html=True)
+        html(f"<div class='slip-title'>🎟️ {len(st.session_state.legs)} pick(s) on this slip</div>")
         for i, leg in enumerate(st.session_state.legs):
             if i > 0:
                 st.divider()
@@ -439,7 +456,7 @@ with tab_sgp:
     st.caption("Add players from either roster — mix and match for the parlay.")
 
     with st.container(border=True):
-        st.markdown(f"<div class='slip-title'>🎟️ {len(st.session_state.sgp_legs)} pick(s) on this slip</div>", unsafe_allow_html=True)
+        html(f"<div class='slip-title'>🎟️ {len(st.session_state.sgp_legs)} pick(s) on this slip</div>")
         for i, leg in enumerate(st.session_state.sgp_legs):
             if i > 0:
                 st.divider()
@@ -450,12 +467,11 @@ with tab_sgp:
                 key=f"sgp_player_{i}",
             )
             if leg["player"]:
-                st.markdown(
+                html(
                     f"""<div style="display:flex;align-items:center;gap:10px;margin:-0.3rem 0 0.5rem 0;">
                           {avatar_html(player_id_by_name[leg['player']], leg['player'], size=32)}
                           <span style="opacity:0.75;font-size:0.9rem;">{leg['player']}</span>
-                        </div>""",
-                    unsafe_allow_html=True,
+                        </div>"""
                 )
             c2, c3 = st.columns(2)
             with c2:
