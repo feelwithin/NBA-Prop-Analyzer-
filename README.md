@@ -283,6 +283,26 @@ those files the first time it starts. If you fetched real data with
 still on the synthetic demo data, mention that so they know the
 names aren't real NBA players.
 
+### Look and feel
+
+The app has a branded dark theme (navy/orange) and a logo, plus a
+couple of UX touches aimed at actually using it on a phone: player
+dropdowns narrow to just the relevant team's roster once you've
+picked a team (instead of scrolling ~600 names), and "recent games
+to weight" is a row of tappable presets instead of a slider.
+
+To rebrand it as your own:
+- **Colors/fonts**: edit `.streamlit/config.toml` — this is
+  Streamlit's native theming, so it applies consistently to every
+  widget (buttons, tabs, sliders, metrics) without touching any
+  Python code.
+- **Logo**: replace `assets/logo.png` with your own square image
+  (used as both the browser-tab favicon and the header mark) — any
+  size works, it's resized automatically.
+- **Name**: it's hardcoded as "Nabil's Prop Analyzer" in a couple of
+  places in `app.py` (`st.set_page_config(page_title=...)` and the
+  header markdown) — search for that string to change it.
+
 ## Schema
 
 ```
@@ -317,6 +337,10 @@ nba-prop-analyzer/
 ├── tests/
 │   └── test_prop_model.py       # sanity checks on the engine
 ├── data/seed/                   # generated/fetched CSVs
+├── assets/
+│   └── logo.png                 # app logo (favicon + header)
+├── .streamlit/
+│   └── config.toml              # app theme (colors/fonts) — edit this to rebrand
 ├── app.py                       # web UI (Streamlit) — see "Share it with a friend"
 ├── requirements.txt
 └── README.md

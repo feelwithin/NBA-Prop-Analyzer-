@@ -1,0 +1,11 @@
+# Native Streamlit theming — this is the supported way to brand a
+# Streamlit app (colors apply consistently to every built-in widget:
+# buttons, sliders, selectboxes, metrics, tabs) rather than fragile
+# CSS overrides that can break across Streamlit versions.
+[theme]
+base = "dark"
+primaryColor = "#FF7A1A"
+backgroundColor = "#0B1220"
+secondaryBackgroundColor = "#131B2E"
+textColor = "#F5F7FA"
+font = "sans serif"
