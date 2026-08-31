@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
-    list_seasons, DB_PATH,
+    _player_team_in_season, list_seasons, DB_PATH,
 )
 
 
@@ -135,6 +135,39 @@ class TestPropModel(unittest.TestCase):
         # must succeed both ways without raising.
         self.assertEqual(home.opponent_abbr, self.team_b)
         self.assertEqual(away.opponent_abbr, self.team_b)
+
+    def test_player_team_resolves_to_most_recent_after_trade(self):
+        """Regression test for a real bug: a player traded mid-season used
+        to resolve to whichever team they'd logged the MOST games with, not
+        their most recent one — so a player who played more games with
+        their old team before the trade than their new team since would
+        resolve back to the old team, breaking same-game parlay matching
+        against their new team's game. Uses an isolated in-memory DB so it
+        doesn't depend on the demo dataset containing a real trade."""
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute("""
+            CREATE TABLE player_game_logs (
+                log_id TEXT PRIMARY KEY, game_id TEXT, game_date TEXT, season TEXT,
+                player_id INTEGER, team_id INTEGER
+            )
+        """)
+        # 10 games with team 1 (old team) early in the season...
+        for i in range(10):
+            conn.execute(
+                "INSERT INTO player_game_logs VALUES (?, ?, ?, '2025-26', 999, 1)",
+                (f"log{i}", f"game{i}", f"2025-10-{i+1:02d}"),
+            )
+        # ...traded, then only 3 games with team 2 (new team) — fewer games,
+        # but more recent.
+        for i in range(3):
+            conn.execute(
+                "INSERT INTO player_game_logs VALUES (?, ?, ?, '2025-26', 999, 2)",
+                (f"log{10+i}", f"game{10+i}", f"2026-01-{i+1:02d}"),
+            )
+        conn.commit()
+        self.assertEqual(_player_team_in_season(conn, 999, "2025-26"), 2)
+        conn.close()
 
 
 if __name__ == "__main__":

@@ -447,13 +447,24 @@ def _player_team_in_season(conn, player_id, season):
     their own game logs — not players.team_id, which only reflects
     their most recently fetched roster and would be wrong for a player
     who was traded, or for an older season looked at after a trade.
-    Falls back to players.team_id if the player has no logs that season
-    (e.g. a line hasn't been checked yet, or very sparse data)."""
+
+    Uses the team from their MOST RECENT logged game, not whichever
+    team they have the most total games with. Those differ for anyone
+    traded mid-season: a player traded late, after logging more games
+    with their old team than their new one, would get resolved back to
+    the old team by a most-games vote — exactly backwards for "who are
+    they on right now," which is what a same-game parlay needs to
+    match them against the correct matchup. (Caught from a real report:
+    a player traded from Philadelphia to Oklahoma City mid-season
+    wasn't resolving to OKC for a Nets-vs-OKC parlay.)
+
+    Falls back to players.team_id if the player has no logs that
+    season (e.g. a line hasn't been checked yet, or very sparse data)."""
     row = conn.execute(
         """
-        SELECT team_id, COUNT(*) AS n FROM player_game_logs
+        SELECT team_id FROM player_game_logs
         WHERE player_id = ? AND season = ?
-        GROUP BY team_id ORDER BY n DESC LIMIT 1
+        ORDER BY game_date DESC, game_id DESC LIMIT 1
         """,
         (player_id, season),
     ).fetchone()
