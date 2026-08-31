@@ -350,16 +350,21 @@ navy/blue with a logo:
   "recent games to weight" is a row of tappable presets instead of
   a slider — both aimed at actually being usable on a phone.
 - **A live stats preview** under each prop: as soon as a player and
-  stat are picked, it shows their plain average for that stat over
-  the currently selected "recent games" window, plus — once an
-  opponent is known — their average in games actually played against
-  that specific opponent this season (usually just a handful of
-  meetings, since teams only play each other a few times a year).
-  Updates instantly as you change the games-window preset or switch
-  stats, no need to check the pick first. This is a simple, unweighted
-  average shown for context — a quick sanity check against what you're
-  about to check — not the recency-weighted, matchup-adjusted number
-  the model itself uses for the actual probability.
+  stat are picked, it draws a StatMuse-style bar chart of their last N
+  games for that stat (N = the selected "recent games" window),
+  colored green/red against your current line, oldest to newest,
+  labeled with the opponent and minutes played. A game where they
+  played well below their usual minutes for that window (blowout,
+  rest, foul trouble, etc.) is drawn faded with its minutes called out
+  in amber, plus a footnote — so a short bar reads as "sat the 4th",
+  not "in a slump". Underneath, a plain-text line adds their average
+  for the window plus — once an opponent is known — their average in
+  games actually played against that specific opponent this season
+  (usually just a handful of meetings, since teams only play each
+  other a few times a year). Updates instantly as you change the
+  games-window preset or switch stats. This is simple, unweighted
+  context — not the recency-weighted, matchup-adjusted number the
+  model itself uses for the actual probability.
 
 To rebrand it as your own:
 - **Colors/fonts**: edit `.streamlit/config.toml` (native Streamlit

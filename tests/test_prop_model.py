@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
     _player_team_in_season, _connect, _find_player, _find_team,
-    player_window_stat_avg, player_vs_opponent_stat_avg,
+    player_window_stat_avg, player_vs_opponent_stat_avg, player_recent_games,
     list_seasons, DB_PATH,
 )
 
@@ -30,10 +30,24 @@ class TestPropModel(unittest.TestCase):
     def setUp(self):
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
-        # Grab a real star player from the demo dataset (name is random-generated, so look it up)
-        self.player = conn.execute(
+        # Grab a player with a decent amount of playing time to run the
+        # probability/stat-average tests against. Prefer role = 'star'
+        # (the synthetic demo dataset's label for its top players) but
+        # fall back to whoever has logged the most games this season —
+        # real data fetched via fetch_data.py uses role = 'starter'
+        # instead, and doesn't have a 'star' label at all.
+        row = conn.execute(
             "SELECT full_name FROM players WHERE role = 'star' LIMIT 1"
-        ).fetchone()["full_name"]
+        ).fetchone()
+        if row is None:
+            row = conn.execute(
+                """
+                SELECT p.full_name FROM player_game_logs pgl
+                JOIN players p ON p.player_id = pgl.player_id
+                GROUP BY pgl.player_id ORDER BY COUNT(*) DESC LIMIT 1
+                """
+            ).fetchone()
+        self.player = row["full_name"]
         # Grab the league's best and worst defense (by points allowed) to test matchup sensitivity
         best = conn.execute(
             "SELECT abbreviation FROM v_team_defense_rating ORDER BY defense_percentile ASC LIMIT 1"
@@ -45,22 +59,33 @@ class TestPropModel(unittest.TestCase):
         self.worst_defense = worst["abbreviation"]
 
         # Two distinct teams, each with a player who actually has game
-        # logs in the most recent loaded season — for same-game parlay tests.
+        # logs in the most recent loaded season — for same-game parlay
+        # tests. Picking each player's CURRENT team (most recent game),
+        # not just any team they logged a game with this season — a
+        # player traded mid-season logged games with their old team
+        # too, and estimate_same_game_parlay resolves players to their
+        # most recent team, so pairing "team_a" with a player whose most
+        # recent team is actually team_b would fail for the same reason
+        # the real trade-resolution bug this app fixes would have.
         conn.row_factory = sqlite3.Row
         season = list_seasons(conn)[0]
         team_players = conn.execute(
             """
-            SELECT DISTINCT t.abbreviation, p.full_name
+            SELECT pgl.player_id, p.full_name, t.abbreviation, pgl.game_date
             FROM player_game_logs pgl
             JOIN players p ON p.player_id = pgl.player_id
             JOIN teams t ON t.team_id = pgl.team_id
             WHERE pgl.season = ?
-            ORDER BY t.abbreviation
             """,
             (season,),
         ).fetchall()
-        by_team = {}
+        latest_by_player = {}
         for row in team_players:
+            cur = latest_by_player.get(row["player_id"])
+            if cur is None or row["game_date"] > cur["game_date"]:
+                latest_by_player[row["player_id"]] = row
+        by_team = {}
+        for row in sorted(latest_by_player.values(), key=lambda r: r["abbreviation"]):
             by_team.setdefault(row["abbreviation"], row["full_name"])
         abbrs = list(by_team.keys())
         self.team_a, self.team_b = abbrs[0], abbrs[1]
@@ -221,6 +246,38 @@ class TestPropModel(unittest.TestCase):
             self.assertAlmostEqual(avg, sum(r["points"] for r in rows) / len(rows), places=6)
         else:
             self.assertIsNone(avg)
+
+    def test_recent_games_oldest_first_and_matches_manual_calc(self):
+        conn = _connect()
+        player = _find_player(conn, self.player)
+        n = 8
+        games = player_recent_games(conn, player["player_id"], "PTS", self.season, n)
+        rows = conn.execute(
+            """
+            SELECT game_date, opponent_abbr, is_home, points, minutes FROM v_player_rolling_stats
+            WHERE player_id = ? AND season = ? AND games_ago <= ?
+            ORDER BY games_ago DESC
+            """,
+            (player["player_id"], self.season, n),
+        ).fetchall()
+        conn.close()
+        self.assertEqual(len(games), len(rows))
+        if rows:
+            # Oldest-first: dates should be non-decreasing across the list.
+            dates = [g["game_date"] for g in games]
+            self.assertEqual(dates, sorted(dates))
+            for g, r in zip(games, rows):
+                self.assertEqual(g["game_date"], r["game_date"])
+                self.assertEqual(g["opponent_abbr"], r["opponent_abbr"])
+                self.assertEqual(g["is_home"], bool(r["is_home"]))
+                self.assertEqual(g["value"], r["points"])
+                self.assertEqual(g["minutes"], r["minutes"])
+
+    def test_recent_games_empty_for_player_with_no_logs(self):
+        conn = _connect()
+        games = player_recent_games(conn, -1, "PTS", self.season, 10)
+        conn.close()
+        self.assertEqual(games, [])
 
 
 if __name__ == "__main__":

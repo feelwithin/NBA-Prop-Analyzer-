@@ -324,6 +324,37 @@ def _home_away_factor(conn, player_id, stat, is_home, season):
     return factor, f"{label} split factor {factor:.3f} from {len(split)} {label} games"
 
 
+def player_recent_games(conn, player_id, stat, season, recent_n):
+    """The player's most recent `recent_n` games this season, OLDEST
+    FIRST (so a bar chart built from this reads left-to-right in time
+    order, matching how game logs are conventionally shown), each as a
+    dict: game_date, opponent_abbr, is_home, value (the stat's value in
+    that game), minutes (minutes played that game — included so a low
+    bar caused by a blowout/foul trouble/rest, rather than a bad
+    performance, can be shown as such, e.g. "18 min" next to a short
+    bar). Not filtered to any one opponent — this is general recent
+    form, distinct from player_vs_opponent_stat_avg. Empty list if the
+    player has no games logged yet this season."""
+    rows = conn.execute(
+        """
+        SELECT * FROM v_player_rolling_stats
+        WHERE player_id = ? AND season = ? AND games_ago <= ?
+        ORDER BY games_ago DESC
+        """,
+        (player_id, season, recent_n),
+    ).fetchall()
+    return [
+        {
+            "game_date": r["game_date"],
+            "opponent_abbr": r["opponent_abbr"],
+            "is_home": bool(r["is_home"]),
+            "value": _stat_value(r, stat),
+            "minutes": r["minutes"],
+        }
+        for r in rows
+    ]
+
+
 def player_window_stat_avg(conn, player_id, stat, season, recent_n):
     """Plain (unweighted) average of `stat` over the player's most recent
     `recent_n` games this season — a simple, readable snapshot for a live

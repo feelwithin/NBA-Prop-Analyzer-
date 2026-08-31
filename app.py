@@ -30,8 +30,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
-    player_window_stat_avg, player_vs_opponent_stat_avg, _player_team_in_season,
-    _connect, DB_PATH, list_seasons,
+    player_window_stat_avg, player_vs_opponent_stat_avg, player_recent_games,
+    _player_team_in_season, _connect, DB_PATH, list_seasons,
 )
 
 LOGO_PATH = ROOT / "assets" / "logo.png"
@@ -219,6 +219,99 @@ def _resolve_player_team(player_id, season):
         return _player_team_in_season(conn, player_id, season)
     finally:
         conn.close()
+
+
+@st.cache_data
+def _recent_games(player_id, stat, season, recent_n):
+    conn = _connect()
+    try:
+        return player_recent_games(conn, player_id, stat, season, recent_n)
+    finally:
+        conn.close()
+
+
+def recent_games_chart_html(stat, player_id, season, recent_n, line=None):
+    """A StatMuse-style bar chart of the player's last `recent_n` games
+    for `stat` — one bar per game, oldest to newest, colored green/red
+    against the current line when one is set. Games where the player
+    played noticeably fewer minutes than their norm in this window are
+    drawn faded with a "·Xm" note under the bar, so a short bar reads
+    as "blowout, sat the 4th" rather than "having a bad stretch" — the
+    same context StatMuse shows next to its game logs. Returns None if
+    the player has no games logged yet this season."""
+    games = _recent_games(player_id, stat, season, recent_n)
+    if not games:
+        return None
+
+    label = STAT_LABELS[stat]
+    values = [g["value"] for g in games]
+    minutes = [g["minutes"] for g in games]
+    avg_minutes = sum(minutes) / len(minutes)
+    vmax = max(values + ([line] if line is not None else [])) or 1
+
+    bar_w, gap = 30, 12
+    plot_h = 84
+    top_pad, bottom_pad = 22, 34
+    chart_w = len(games) * (bar_w + gap) + gap
+    chart_h = top_pad + plot_h + bottom_pad
+
+    bars_svg = []
+    line_svg = ""
+    if line is not None:
+        line_y = top_pad + plot_h - (min(line, vmax) / vmax) * plot_h
+        line_svg = f"""
+            <line x1="0" y1="{line_y:.1f}" x2="{chart_w}" y2="{line_y:.1f}"
+                  stroke="#9AA5B1" stroke-width="1.5" stroke-dasharray="4,4" />
+            <text x="4" y="{line_y - 5:.1f}" font-size="10" fill="#9AA5B1" font-weight="700">
+                Line {line:g}
+            </text>
+        """
+
+    for i, g in enumerate(games):
+        x = gap + i * (bar_w + gap)
+        h = (g["value"] / vmax) * plot_h if vmax else 0
+        y = top_pad + plot_h - h
+        low_minutes = g["minutes"] < avg_minutes * 0.7
+        if line is not None:
+            color = "#2ECC71" if g["value"] >= line else "#FF5C5C"
+        else:
+            color = ACCENT
+        opacity = 0.45 if low_minutes else 1.0
+        opp_label = ("vs " if g["is_home"] else "@ ") + (g["opponent_abbr"] or "?")
+        min_note = f'<tspan fill="#E8A33D">·{g["minutes"]}m</tspan>' if low_minutes else f'{g["minutes"]}m'
+        bars_svg.append(f"""
+            <g>
+              <rect x="{x}" y="{y:.1f}" width="{bar_w}" height="{max(h, 2):.1f}" rx="6"
+                    fill="{color}" fill-opacity="{opacity}" />
+              <text x="{x + bar_w/2}" y="{y - 6:.1f}" font-size="11" font-weight="800"
+                    fill="currentColor" text-anchor="middle">{g["value"]:g}</text>
+              <text x="{x + bar_w/2}" y="{top_pad + plot_h + 14}" font-size="9" fill="#9AA5B1"
+                    text-anchor="middle">{opp_label}</text>
+              <text x="{x + bar_w/2}" y="{top_pad + plot_h + 26}" font-size="9" fill="#9AA5B1"
+                    text-anchor="middle">{min_note}</text>
+            </g>
+        """)
+
+    any_low_minutes = any(g["minutes"] < avg_minutes * 0.7 for g in games)
+    footnote = (
+        f'<div style="font-size:0.72rem;opacity:0.55;margin-top:2px;">'
+        f'<span style="color:#E8A33D;">●</span> faded bar = well below their usual minutes that game '
+        f'(blowout, rest, foul trouble, etc.) — {label.lower()} total may not reflect a normal workload</div>'
+        if any_low_minutes else ""
+    )
+
+    return f"""
+        <div style="margin:-0.2rem 0 0.6rem 0;">
+          <div style="overflow-x:auto;">
+            <svg width="{chart_w}" height="{chart_h}" viewBox="0 0 {chart_w} {chart_h}"
+                 style="display:block;min-width:{chart_w}px;">
+              {line_svg}
+              {''.join(bars_svg)}
+            </svg>
+          </div>
+          {footnote}
+        </div>
+    """
 
 
 def stat_snapshot_line(stat, player_id, season, recent_n, opponent_team_id=None, opponent_abbr=None):
@@ -429,6 +522,11 @@ with tab_single:
 
             if player and season:
                 opponent_team_id = team_id_by_abbr.get(team_abbr_by_label.get(team_label)) if team_label else None
+                chart = recent_games_chart_html(
+                    leg["stat"], player_id_by_name[player], season, recent_n, line=leg["line"],
+                )
+                if chart:
+                    html(chart)
                 snapshot = stat_snapshot_line(
                     leg["stat"], player_id_by_name[player], season, recent_n,
                     opponent_team_id=opponent_team_id, opponent_abbr=team_abbr_by_label.get(team_label),
@@ -556,6 +654,11 @@ with tab_sgp:
                 own_team_id = _resolve_player_team(player_id_by_name[leg["player"]], season)
                 opponent_team_id = team_b_id if own_team_id == team_a_id else team_a_id
                 opponent_abbr = next(abbr for abbr, tid in team_id_by_abbr.items() if tid == opponent_team_id)
+                chart = recent_games_chart_html(
+                    leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n, line=leg["line"],
+                )
+                if chart:
+                    html(chart)
                 snapshot = stat_snapshot_line(
                     leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n,
                     opponent_team_id=opponent_team_id, opponent_abbr=opponent_abbr,
