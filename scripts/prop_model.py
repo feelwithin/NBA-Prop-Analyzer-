@@ -324,6 +324,48 @@ def _home_away_factor(conn, player_id, stat, is_home, season):
     return factor, f"{label} split factor {factor:.3f} from {len(split)} {label} games"
 
 
+def player_window_stat_avg(conn, player_id, stat, season, recent_n):
+    """Plain (unweighted) average of `stat` over the player's most recent
+    `recent_n` games this season — a simple, readable snapshot for a live
+    UI preview, distinct from the model's own recency-weighted estimate
+    (which additionally exponentially decays older games within the
+    window rather than averaging them equally). Returns (avg, n) where n
+    is the actual number of games found (may be less than recent_n early
+    in a season). Returns (None, 0) if the player has no games logged
+    yet this season."""
+    rows = conn.execute(
+        """
+        SELECT * FROM v_player_rolling_stats
+        WHERE player_id = ? AND season = ? AND games_ago <= ?
+        ORDER BY games_ago
+        """,
+        (player_id, season, recent_n),
+    ).fetchall()
+    if not rows:
+        return None, 0
+    values = [_stat_value(r, stat) for r in rows]
+    return sum(values) / len(values), len(values)
+
+
+def player_vs_opponent_stat_avg(conn, player_id, stat, opponent_team_id, season):
+    """Plain average of `stat` across every game the player has actually
+    played against this specific opponent so far this season (not a
+    recent-N window — teams typically only meet a handful of times a
+    season, so this is naturally a small sample). Returns (avg, n);
+    (None, 0) if they haven't played that opponent yet this season."""
+    rows = conn.execute(
+        """
+        SELECT * FROM v_player_rolling_stats
+        WHERE player_id = ? AND season = ? AND opponent_team_id = ?
+        """,
+        (player_id, season, opponent_team_id),
+    ).fetchall()
+    if not rows:
+        return None, 0
+    values = [_stat_value(r, stat) for r in rows]
+    return sum(values) / len(values), len(values)
+
+
 def estimate_prop_probability(
     player_name, stat, line, opponent_abbr, direction="over",
     is_home=None, recent_n=20, half_life=8, conn=None, season=None,

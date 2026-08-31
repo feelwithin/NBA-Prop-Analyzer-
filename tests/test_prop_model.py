@@ -19,7 +19,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
-    _player_team_in_season, list_seasons, DB_PATH,
+    _player_team_in_season, _connect, _find_player, _find_team,
+    player_window_stat_avg, player_vs_opponent_stat_avg,
+    list_seasons, DB_PATH,
 )
 
 
@@ -65,6 +67,7 @@ class TestPropModel(unittest.TestCase):
         self.player_a, self.player_b = by_team[self.team_a], by_team[self.team_b]
         # A player from a third team, to test the "wrong game" error path
         self.other_team_player = by_team[abbrs[2]] if len(abbrs) > 2 else None
+        self.season = season
 
         conn.close()
 
@@ -168,6 +171,56 @@ class TestPropModel(unittest.TestCase):
         conn.commit()
         self.assertEqual(_player_team_in_season(conn, 999, "2025-26"), 2)
         conn.close()
+
+    def test_window_stat_avg_matches_manual_calc(self):
+        conn = _connect()
+        player = _find_player(conn, self.player)
+        avg5, n5 = player_window_stat_avg(conn, player["player_id"], "PTS", self.season, 5)
+        rows = conn.execute(
+            """
+            SELECT points FROM v_player_rolling_stats
+            WHERE player_id = ? AND season = ? AND games_ago <= 5 ORDER BY games_ago
+            """,
+            (player["player_id"], self.season),
+        ).fetchall()
+        conn.close()
+        self.assertEqual(n5, len(rows))
+        if rows:
+            self.assertAlmostEqual(avg5, sum(r["points"] for r in rows) / len(rows), places=6)
+
+    def test_window_stat_avg_shrinks_with_smaller_window(self):
+        # Not a claim the numbers must differ (they legitimately can be
+        # equal by coincidence) — just that a 5-game and 30-game window
+        # both return coherent, independently-computed results without
+        # one leaking into the other's sample size.
+        conn = _connect()
+        player = _find_player(conn, self.player)
+        _, n5 = player_window_stat_avg(conn, player["player_id"], "PTS", self.season, 5)
+        _, n30 = player_window_stat_avg(conn, player["player_id"], "PTS", self.season, 30)
+        conn.close()
+        self.assertLessEqual(n5, 5)
+        self.assertGreaterEqual(n30, n5)
+
+    def test_vs_opponent_stat_avg_only_counts_games_against_that_team(self):
+        conn = _connect()
+        player = _find_player(conn, self.player_a)
+        opponent = _find_team(conn, self.team_b)
+        avg, n = player_vs_opponent_stat_avg(
+            conn, player["player_id"], "PTS", opponent["team_id"], self.season,
+        )
+        rows = conn.execute(
+            """
+            SELECT points FROM v_player_rolling_stats
+            WHERE player_id = ? AND season = ? AND opponent_team_id = ?
+            """,
+            (player["player_id"], self.season, opponent["team_id"]),
+        ).fetchall()
+        conn.close()
+        self.assertEqual(n, len(rows))
+        if rows:
+            self.assertAlmostEqual(avg, sum(r["points"] for r in rows) / len(rows), places=6)
+        else:
+            self.assertIsNone(avg)
 
 
 if __name__ == "__main__":

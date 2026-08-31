@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
+    player_window_stat_avg, player_vs_opponent_stat_avg, _player_team_in_season,
     _connect, DB_PATH, list_seasons,
 )
 
@@ -157,10 +158,9 @@ def load_options():
     player_rows = conn.execute("SELECT player_id, full_name FROM players ORDER BY full_name").fetchall()
     players = [r["full_name"] for r in player_rows]
     player_id_by_name = {r["full_name"]: r["player_id"] for r in player_rows}
-    teams = [
-        (r["abbreviation"], r["team_name"])
-        for r in conn.execute("SELECT abbreviation, team_name FROM teams ORDER BY team_name")
-    ]
+    team_rows = conn.execute("SELECT team_id, abbreviation, team_name FROM teams ORDER BY team_name").fetchall()
+    teams = [(r["abbreviation"], r["team_name"]) for r in team_rows]
+    team_id_by_abbr = {r["abbreviation"]: r["team_id"] for r in team_rows}
     seasons = list_seasons(conn)
 
     # season -> team abbreviation -> sorted list of player names who
@@ -185,7 +185,65 @@ def load_options():
             season_map[abbr].sort()
 
     conn.close()
-    return players, player_id_by_name, teams, seasons, by_season_team
+    return players, player_id_by_name, teams, team_id_by_abbr, seasons, by_season_team
+
+
+@st.cache_data
+def _window_stat_avg(player_id, stat, season, recent_n):
+    """Cached wrapper around prop_model.player_window_stat_avg — opens
+    its own short-lived connection (rather than taking one as an
+    argument) so Streamlit can cache on the plain, hashable arguments.
+    Cheap enough to call on every rerun (every widget click reruns the
+    whole script), but caching avoids re-querying identical
+    (player, stat, season, window) combos as the user clicks around."""
+    conn = _connect()
+    try:
+        return player_window_stat_avg(conn, player_id, stat, season, recent_n)
+    finally:
+        conn.close()
+
+
+@st.cache_data
+def _vs_opponent_stat_avg(player_id, stat, opponent_team_id, season):
+    conn = _connect()
+    try:
+        return player_vs_opponent_stat_avg(conn, player_id, stat, opponent_team_id, season)
+    finally:
+        conn.close()
+
+
+@st.cache_data
+def _resolve_player_team(player_id, season):
+    conn = _connect()
+    try:
+        return _player_team_in_season(conn, player_id, season)
+    finally:
+        conn.close()
+
+
+def stat_snapshot_line(stat, player_id, season, recent_n, opponent_team_id=None, opponent_abbr=None):
+    """One line of text for the live stats preview: the player's plain
+    average for `stat` over their last `recent_n` games this season,
+    plus — when an opponent is known — their average in games actually
+    played against that specific opponent this season. Returns None if
+    the player has no games logged yet this season (nothing useful to
+    show)."""
+    label = STAT_LABELS[stat].lower()
+    window_avg, window_n = _window_stat_avg(player_id, stat, season, recent_n)
+    if window_avg is None:
+        return None
+    unit = "game" if window_n == 1 else "games"
+    parts = [f"Last {window_n} {unit}: <b>{window_avg:.1f}</b> {label}/gm"]
+
+    if opponent_team_id is not None:
+        vs_avg, vs_n = _vs_opponent_stat_avg(player_id, stat, opponent_team_id, season)
+        if vs_avg is not None:
+            vs_unit = "game" if vs_n == 1 else "games"
+            parts.append(f"vs {opponent_abbr} this season: <b>{vs_avg:.1f}</b> {label}/gm ({vs_n} {vs_unit})")
+        else:
+            parts.append(f"vs {opponent_abbr} this season: no meetings yet")
+
+    return " &nbsp;•&nbsp; ".join(parts)
 
 
 def recent_games_control(label, key, default=20):
@@ -269,7 +327,7 @@ def render_result(r):
 
 
 ensure_database()
-players, player_id_by_name, teams, seasons, players_by_season_team = load_options()
+players, player_id_by_name, teams, team_id_by_abbr, seasons, players_by_season_team = load_options()
 team_labels = [f"{name} ({abbr})" for abbr, name in teams]
 team_abbr_by_label = {f"{name} ({abbr})": abbr for abbr, name in teams}
 
@@ -368,6 +426,16 @@ with tab_single:
                 )
             with c2:
                 leg["line"] = st.number_input("Line", key=f"line_{i}", value=leg["line"], step=0.5)
+
+            if player and season:
+                opponent_team_id = team_id_by_abbr.get(team_abbr_by_label.get(team_label)) if team_label else None
+                snapshot = stat_snapshot_line(
+                    leg["stat"], player_id_by_name[player], season, recent_n,
+                    opponent_team_id=opponent_team_id, opponent_abbr=team_abbr_by_label.get(team_label),
+                )
+                if snapshot:
+                    html(f"<div style='font-size:0.82rem;opacity:0.7;margin:-0.3rem 0 0.6rem 0;'>{snapshot}</div>")
+
             direction_pills(leg, key_prefix=f"single_{i}")
             if len(st.session_state.legs) > 1:
                 if st.button("Remove this leg", key=f"remove_{i}", use_container_width=True):
@@ -481,6 +549,20 @@ with tab_sgp:
                 )
             with c3:
                 leg["line"] = st.number_input("Line", key=f"sgp_line_{i}", value=leg["line"], step=0.5)
+
+            if leg["player"] and team_a_label and team_b_label and season:
+                team_a_id = team_id_by_abbr[team_abbr_by_label[team_a_label]]
+                team_b_id = team_id_by_abbr[team_abbr_by_label[team_b_label]]
+                own_team_id = _resolve_player_team(player_id_by_name[leg["player"]], season)
+                opponent_team_id = team_b_id if own_team_id == team_a_id else team_a_id
+                opponent_abbr = next(abbr for abbr, tid in team_id_by_abbr.items() if tid == opponent_team_id)
+                snapshot = stat_snapshot_line(
+                    leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n,
+                    opponent_team_id=opponent_team_id, opponent_abbr=opponent_abbr,
+                )
+                if snapshot:
+                    html(f"<div style='font-size:0.82rem;opacity:0.7;margin:-0.3rem 0 0.6rem 0;'>{snapshot}</div>")
+
             direction_pills(leg, key_prefix=f"sgp_{i}")
             if len(st.session_state.sgp_legs) > 1:
                 if st.button("Remove this leg", key=f"sgp_remove_{i}", use_container_width=True):
