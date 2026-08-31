@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
     player_window_stat_avg, player_vs_opponent_stat_avg, player_recent_games,
+    player_games_vs_opponent,
     _player_team_in_season, _connect, DB_PATH, list_seasons,
 )
 
@@ -230,24 +231,31 @@ def _recent_games(player_id, stat, season, recent_n):
         conn.close()
 
 
-def recent_games_chart_html(stat, player_id, season, recent_n, line=None, direction="over"):
-    """A StatMuse-style bar chart of the player's last `recent_n` games
-    for `stat` — one bar per game, oldest to newest, colored green/red
-    against the current line and pick direction when a line is set:
-    green means that game would have HIT the pick (value >= line for
-    an over, value < line for an under), red means it would have
-    missed — so the coloring flips depending on which side of the pick
-    you're looking at, not just whether the bar is above or below the
-    line. Games where the player played noticeably fewer minutes than
-    their norm in this window are drawn faded with a "·Xm" note under
-    the bar, so a short bar reads as "blowout, sat the 4th" rather than
-    "having a bad stretch" — the same context StatMuse shows next to
-    its game logs. Returns None if the player has no games logged yet
-    this season."""
-    games = _recent_games(player_id, stat, season, recent_n)
-    if not games:
-        return None
+@st.cache_data
+def _games_vs_opponent(player_id, stat, season, opponent_team_id):
+    conn = _connect()
+    try:
+        return player_games_vs_opponent(conn, player_id, stat, season, opponent_team_id)
+    finally:
+        conn.close()
 
+
+def _games_bar_chart_svg(games, stat, line=None, direction="over"):
+    """Shared renderer behind both chart modes: a StatMuse-style bar
+    chart of a already-fetched list of games (oldest to newest) for
+    `stat` — one bar per game, colored green/red against the current
+    line and pick direction when a line is set: green means that game
+    would have HIT the pick (value >= line for an over, value < line
+    for an under), red means it would have missed — so the coloring
+    flips depending on which side of the pick you're looking at, not
+    just whether the bar is above or below the line. Games where the
+    player played noticeably fewer minutes than their norm in this set
+    are drawn faded with a "·Xm" note under the bar, so a short bar
+    reads as "blowout, sat the 4th" rather than "having a bad stretch"
+    — the same context StatMuse shows next to its game logs. `games`
+    must be non-empty (callers check first, since an empty set means
+    different things — no games yet vs. no meetings vs this opponent —
+    better worded by the caller)."""
     label = STAT_LABELS[stat]
     values = [g["value"] for g in games]
     minutes = [g["minutes"] for g in games]
@@ -320,6 +328,31 @@ def recent_games_chart_html(stat, player_id, season, recent_n, line=None, direct
     """
 
 
+def recent_games_chart_html(stat, player_id, season, recent_n, line=None, direction="over"):
+    """General recent-form chart mode: last `recent_n` games, any
+    opponent. Returns None if the player has no games logged yet this
+    season."""
+    games = _recent_games(player_id, stat, season, recent_n)
+    if not games:
+        return None
+    return _games_bar_chart_svg(games, stat, line=line, direction=direction)
+
+
+def vs_opponent_chart_html(stat, player_id, season, opponent_team_id, opponent_abbr, line=None, direction="over"):
+    """Head-to-head chart mode: every game played against this specific
+    opponent so far this season. Returns a plain "no meetings yet"
+    message (not None) when they haven't played that opponent yet —
+    distinct from the general mode, where no data at all means don't
+    show a chart section."""
+    games = _games_vs_opponent(player_id, stat, season, opponent_team_id)
+    if not games:
+        return (
+            f'<div style="font-size:0.82rem;opacity:0.6;margin:0.2rem 0 0.6rem 0;">'
+            f"No meetings vs {opponent_abbr} yet this season.</div>"
+        )
+    return _games_bar_chart_svg(games, stat, line=line, direction=direction)
+
+
 def stat_snapshot_line(stat, player_id, season, recent_n, opponent_team_id=None, opponent_abbr=None):
     """One line of text for the live stats preview: the player's plain
     average for `stat` over their last `recent_n` games this season,
@@ -355,6 +388,23 @@ def recent_games_control(label, key, default=20):
         val = st.segmented_control(label, options, default=default, key=key)
         return val if val is not None else default
     return st.slider(label, min_value=5, max_value=40, value=default, key=key)
+
+
+def chart_mode_control(key, opponent_abbr):
+    """Toggle between the two stats-preview chart modes: general recent
+    form (any opponent) vs. every meeting against the specific opponent
+    known for this pick. Only call this once an opponent is known —
+    with nothing to compare against, "recent games" is the only mode
+    that makes sense. Returns 'recent' or 'vs_opponent'."""
+    recent_label, vs_label = "Recent games", f"Vs {opponent_abbr}"
+    if hasattr(st, "segmented_control"):
+        val = st.segmented_control(
+            "Chart", [recent_label, vs_label], default=recent_label, key=key,
+        )
+        val = val if val is not None else recent_label
+    else:
+        val = st.radio("Chart", [recent_label, vs_label], horizontal=True, key=key)
+    return "vs_opponent" if val == vs_label else "recent"
 
 
 def direction_pills(leg, key_prefix):
@@ -527,16 +577,29 @@ with tab_single:
                 leg["line"] = st.number_input("Line", key=f"line_{i}", value=leg["line"], step=0.5)
 
             if player and season:
-                opponent_team_id = team_id_by_abbr.get(team_abbr_by_label.get(team_label)) if team_label else None
-                chart = recent_games_chart_html(
-                    leg["stat"], player_id_by_name[player], season, recent_n,
-                    line=leg["line"], direction=leg["direction"],
-                )
+                opponent_abbr = team_abbr_by_label.get(team_label)
+                opponent_team_id = team_id_by_abbr.get(opponent_abbr) if team_label else None
+
+                chart_mode = "recent"
+                if opponent_team_id is not None:
+                    chart_mode = chart_mode_control(f"chart_mode_{i}", opponent_abbr)
+
+                if chart_mode == "vs_opponent" and opponent_team_id is not None:
+                    chart = vs_opponent_chart_html(
+                        leg["stat"], player_id_by_name[player], season, opponent_team_id, opponent_abbr,
+                        line=leg["line"], direction=leg["direction"],
+                    )
+                else:
+                    chart = recent_games_chart_html(
+                        leg["stat"], player_id_by_name[player], season, recent_n,
+                        line=leg["line"], direction=leg["direction"],
+                    )
                 if chart:
                     html(chart)
+
                 snapshot = stat_snapshot_line(
                     leg["stat"], player_id_by_name[player], season, recent_n,
-                    opponent_team_id=opponent_team_id, opponent_abbr=team_abbr_by_label.get(team_label),
+                    opponent_team_id=opponent_team_id, opponent_abbr=opponent_abbr,
                 )
                 if snapshot:
                     html(f"<div style='font-size:0.82rem;opacity:0.7;margin:-0.3rem 0 0.6rem 0;'>{snapshot}</div>")
@@ -661,10 +724,18 @@ with tab_sgp:
                 own_team_id = _resolve_player_team(player_id_by_name[leg["player"]], season)
                 opponent_team_id = team_b_id if own_team_id == team_a_id else team_a_id
                 opponent_abbr = next(abbr for abbr, tid in team_id_by_abbr.items() if tid == opponent_team_id)
-                chart = recent_games_chart_html(
-                    leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n,
-                    line=leg["line"], direction=leg["direction"],
-                )
+
+                chart_mode = chart_mode_control(f"sgp_chart_mode_{i}", opponent_abbr)
+                if chart_mode == "vs_opponent":
+                    chart = vs_opponent_chart_html(
+                        leg["stat"], player_id_by_name[leg["player"]], season, opponent_team_id, opponent_abbr,
+                        line=leg["line"], direction=leg["direction"],
+                    )
+                else:
+                    chart = recent_games_chart_html(
+                        leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n,
+                        line=leg["line"], direction=leg["direction"],
+                    )
                 if chart:
                     html(chart)
                 snapshot = stat_snapshot_line(

@@ -21,6 +21,7 @@ from prop_model import (  # noqa: E402
     estimate_prop_probability, combine_probabilities, estimate_same_game_parlay,
     _player_team_in_season, _connect, _find_player, _find_team,
     player_window_stat_avg, player_vs_opponent_stat_avg, player_recent_games,
+    player_games_vs_opponent,
     list_seasons, DB_PATH,
 )
 
@@ -246,6 +247,31 @@ class TestPropModel(unittest.TestCase):
             self.assertAlmostEqual(avg, sum(r["points"] for r in rows) / len(rows), places=6)
         else:
             self.assertIsNone(avg)
+
+    def test_games_vs_opponent_matches_avg_and_row_count(self):
+        """player_games_vs_opponent should return exactly the games that
+        player_vs_opponent_stat_avg averaged over — same n, same values,
+        oldest-first — since they're meant to back the same chart/number
+        pair in the UI (a toggle between general recent form and this
+        specific-opponent view)."""
+        conn = _connect()
+        player = _find_player(conn, self.player_a)
+        opponent = _find_team(conn, self.team_b)
+        avg, n = player_vs_opponent_stat_avg(
+            conn, player["player_id"], "PTS", opponent["team_id"], self.season,
+        )
+        games = player_games_vs_opponent(
+            conn, player["player_id"], "PTS", self.season, opponent["team_id"],
+        )
+        conn.close()
+        self.assertEqual(len(games), n)
+        if games:
+            dates = [g["game_date"] for g in games]
+            self.assertEqual(dates, sorted(dates))
+            self.assertAlmostEqual(
+                sum(g["value"] for g in games) / len(games), avg, places=6,
+            )
+            self.assertTrue(all(g["opponent_abbr"] == self.team_b for g in games))
 
     def test_recent_games_oldest_first_and_matches_manual_calc(self):
         conn = _connect()

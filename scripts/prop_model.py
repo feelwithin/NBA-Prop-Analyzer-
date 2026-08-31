@@ -397,6 +397,34 @@ def player_vs_opponent_stat_avg(conn, player_id, stat, opponent_team_id, season)
     return sum(values) / len(values), len(values)
 
 
+def player_games_vs_opponent(conn, player_id, stat, season, opponent_team_id):
+    """Every game the player has actually played against this specific
+    opponent so far this season, OLDEST FIRST — the per-game companion
+    to player_vs_opponent_stat_avg, shaped exactly like
+    player_recent_games (same dict keys) so both can feed the same
+    chart-rendering code. Typically a small list (teams usually only
+    meet a handful of times a season). Empty list if they haven't
+    played that opponent yet this season."""
+    rows = conn.execute(
+        """
+        SELECT * FROM v_player_rolling_stats
+        WHERE player_id = ? AND season = ? AND opponent_team_id = ?
+        ORDER BY games_ago DESC
+        """,
+        (player_id, season, opponent_team_id),
+    ).fetchall()
+    return [
+        {
+            "game_date": r["game_date"],
+            "opponent_abbr": r["opponent_abbr"],
+            "is_home": bool(r["is_home"]),
+            "value": _stat_value(r, stat),
+            "minutes": r["minutes"],
+        }
+        for r in rows
+    ]
+
+
 def estimate_prop_probability(
     player_name, stat, line, opponent_abbr, direction="over",
     is_home=None, recent_n=20, half_life=8, conn=None, season=None,
