@@ -230,15 +230,20 @@ def _recent_games(player_id, stat, season, recent_n):
         conn.close()
 
 
-def recent_games_chart_html(stat, player_id, season, recent_n, line=None):
+def recent_games_chart_html(stat, player_id, season, recent_n, line=None, direction="over"):
     """A StatMuse-style bar chart of the player's last `recent_n` games
     for `stat` — one bar per game, oldest to newest, colored green/red
-    against the current line when one is set. Games where the player
-    played noticeably fewer minutes than their norm in this window are
-    drawn faded with a "·Xm" note under the bar, so a short bar reads
-    as "blowout, sat the 4th" rather than "having a bad stretch" — the
-    same context StatMuse shows next to its game logs. Returns None if
-    the player has no games logged yet this season."""
+    against the current line and pick direction when a line is set:
+    green means that game would have HIT the pick (value >= line for
+    an over, value < line for an under), red means it would have
+    missed — so the coloring flips depending on which side of the pick
+    you're looking at, not just whether the bar is above or below the
+    line. Games where the player played noticeably fewer minutes than
+    their norm in this window are drawn faded with a "·Xm" note under
+    the bar, so a short bar reads as "blowout, sat the 4th" rather than
+    "having a bad stretch" — the same context StatMuse shows next to
+    its game logs. Returns None if the player has no games logged yet
+    this season."""
     games = _recent_games(player_id, stat, season, recent_n)
     if not games:
         return None
@@ -273,7 +278,8 @@ def recent_games_chart_html(stat, player_id, season, recent_n, line=None):
         y = top_pad + plot_h - h
         low_minutes = g["minutes"] < avg_minutes * 0.7
         if line is not None:
-            color = "#2ECC71" if g["value"] >= line else "#FF5C5C"
+            hit = g["value"] >= line if direction == "over" else g["value"] < line
+            color = "#2ECC71" if hit else "#FF5C5C"
         else:
             color = ACCENT
         opacity = 0.45 if low_minutes else 1.0
@@ -523,7 +529,8 @@ with tab_single:
             if player and season:
                 opponent_team_id = team_id_by_abbr.get(team_abbr_by_label.get(team_label)) if team_label else None
                 chart = recent_games_chart_html(
-                    leg["stat"], player_id_by_name[player], season, recent_n, line=leg["line"],
+                    leg["stat"], player_id_by_name[player], season, recent_n,
+                    line=leg["line"], direction=leg["direction"],
                 )
                 if chart:
                     html(chart)
@@ -655,7 +662,8 @@ with tab_sgp:
                 opponent_team_id = team_b_id if own_team_id == team_a_id else team_a_id
                 opponent_abbr = next(abbr for abbr, tid in team_id_by_abbr.items() if tid == opponent_team_id)
                 chart = recent_games_chart_html(
-                    leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n, line=leg["line"],
+                    leg["stat"], player_id_by_name[leg["player"]], season, sgp_recent_n,
+                    line=leg["line"], direction=leg["direction"],
                 )
                 if chart:
                     html(chart)
