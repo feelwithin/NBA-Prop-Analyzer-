@@ -124,6 +124,41 @@ class TestPropModel(unittest.TestCase):
         r = estimate_prop_probability(self.player, "PRA", 30, self.worst_defense)
         self.assertGreaterEqual(r.recency_weighted_mean, 0)
 
+    def test_new_single_stats_estimate_without_error(self):
+        # Turnovers and 3-Pointers Made — added alongside steals/blocks so
+        # every FanDuel-style single-stat player prop market is covered.
+        for stat in ("TOV", "FG3M"):
+            r = estimate_prop_probability(self.player, stat, 2, self.worst_defense)
+            self.assertGreaterEqual(r.probability, 0.0)
+            self.assertLessEqual(r.probability, 1.0)
+
+    def test_combo_stats_match_sum_of_raw_columns(self):
+        """PR/PA/RA/STOCKS should each equal the plain sum of their two
+        component box-score columns, game by game — same contract PRA
+        already had, just generalized to the newer combos."""
+        conn = _connect()
+        player = _find_player(conn, self.player)
+        rows = conn.execute(
+            "SELECT points, rebounds, assists, steals, blocks FROM v_player_rolling_stats "
+            "WHERE player_id = ? AND season = ? AND games_ago <= 5",
+            (player["player_id"], self.season),
+        ).fetchall()
+        conn.close()
+        if not rows:
+            self.skipTest("player has no games logged this season")
+        expected = {
+            "PR": sum(r["points"] + r["rebounds"] for r in rows) / len(rows),
+            "PA": sum(r["points"] + r["assists"] for r in rows) / len(rows),
+            "RA": sum(r["rebounds"] + r["assists"] for r in rows) / len(rows),
+            "STOCKS": sum(r["steals"] + r["blocks"] for r in rows) / len(rows),
+        }
+        conn = _connect()
+        for stat, exp_avg in expected.items():
+            avg, n = player_window_stat_avg(conn, player["player_id"], stat, self.season, 5)
+            self.assertEqual(n, len(rows))
+            self.assertAlmostEqual(avg, exp_avg, places=6)
+        conn.close()
+
     def test_combine_probabilities_multiplies(self):
         r1 = estimate_prop_probability(self.player, "PTS", 15, self.worst_defense)
         r2 = estimate_prop_probability(self.player, "AST", 3, self.worst_defense)

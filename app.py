@@ -518,7 +518,12 @@ if len(seasons) > 1:
 else:
     season = seasons[0] if seasons else None
 
-STAT_LABELS = {"PTS": "Points", "REB": "Rebounds", "AST": "Assists", "STL": "Steals", "BLK": "Blocks", "PRA": "Points+Rebounds+Assists"}
+STAT_LABELS = {
+    "PTS": "Points", "REB": "Rebounds", "AST": "Assists",
+    "STL": "Steals", "BLK": "Blocks", "TOV": "Turnovers", "FG3M": "3-Pointers Made",
+    "PRA": "Points+Rebounds+Assists", "PR": "Points+Rebounds",
+    "PA": "Points+Assists", "RA": "Rebounds+Assists", "STOCKS": "Blocks+Steals",
+}
 
 tab_single, tab_sgp = st.tabs(["Single player", "Same-game parlay"])
 

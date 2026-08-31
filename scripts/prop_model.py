@@ -36,7 +36,37 @@ STAT_COLUMNS = {
     "AST": "assists",
     "STL": "steals",
     "BLK": "blocks",
+    "TOV": "turnovers",
+    "FG3M": "three_made",
     "PRA": None,  # points + rebounds + assists, handled specially
+    "PR": None,   # points + rebounds
+    "PA": None,   # points + assists
+    "RA": None,   # rebounds + assists
+    "STOCKS": None,  # steals + blocks — FanDuel's "Blocks + Steals" market
+}
+
+# The individual box-score columns behind each combo stat above — used
+# by _stat_value, _matchup_factor, and _home_away_factor so adding a
+# new combo only means adding one entry here (plus one in STAT_COLUMNS
+# and one in app.py's STAT_LABELS), not touching three places.
+COMBO_COLUMNS = {
+    "PRA": ("points", "rebounds", "assists"),
+    "PR": ("points", "rebounds"),
+    "PA": ("points", "assists"),
+    "RA": ("rebounds", "assists"),
+    "STOCKS": ("steals", "blocks"),
+}
+
+# Same combos, but as the single-stat abbreviations _matchup_factor
+# already knows how to score individually — lets a combo's matchup
+# adjustment fall out of averaging its components' adjustments instead
+# of needing its own case.
+COMBO_STATS = {
+    "PRA": ("PTS", "REB", "AST"),
+    "PR": ("PTS", "REB"),
+    "PA": ("PTS", "AST"),
+    "RA": ("REB", "AST"),
+    "STOCKS": ("STL", "BLK"),
 }
 
 
@@ -157,8 +187,8 @@ def _find_team(conn, abbr_or_name):
 
 
 def _stat_value(row, stat):
-    if stat == "PRA":
-        return row["points"] + row["rebounds"] + row["assists"]
+    if stat in COMBO_COLUMNS:
+        return sum(row[col] for col in COMBO_COLUMNS[stat])
     return row[STAT_COLUMNS[stat]]
 
 
@@ -259,9 +289,12 @@ def _matchup_factor(conn, position, stat, opponent_team_id, season):
     it was the adjustment's effect size being too large. Dampening by
     the same 0.3-ish factor used for home/away closed most of that gap
     in re-testing."""
-    if stat == "PRA":
-        # Approximate PRA defense as the sum of the three component factors
-        factors = [_matchup_factor(conn, position, s, opponent_team_id, season) for s in ("PTS", "REB", "AST")]
+    if stat in COMBO_STATS:
+        # Approximate a combo stat's defense as the average of its
+        # components' factors (matches how PRA was already handled).
+        factors = [
+            _matchup_factor(conn, position, s, opponent_team_id, season) for s in COMBO_STATS[stat]
+        ]
         return sum(factors) / len(factors)
 
     col_map = {"PTS": "avg_points_allowed", "REB": "avg_rebounds_allowed", "AST": "avg_assists_allowed"}
@@ -293,13 +326,15 @@ def _home_away_factor(conn, player_id, stat, is_home, season):
         return 1.0, "home/away not specified — no adjustment applied"
 
     col = STAT_COLUMNS.get(stat)
-    if col is None:  # PRA
+    if col is None:  # a combo stat (PRA, PR, PA, RA, STOCKS)
+        combo_cols = COMBO_COLUMNS[stat]
+        select_cols = ", ".join(combo_cols)
         rows = conn.execute(
-            "SELECT is_home, points, rebounds, assists FROM player_game_logs WHERE player_id = ? AND season = ?",
+            f"SELECT is_home, {select_cols} FROM player_game_logs WHERE player_id = ? AND season = ?",
             (player_id, season),
         ).fetchall()
-        overall = [r["points"] + r["rebounds"] + r["assists"] for r in rows]
-        split = [r["points"] + r["rebounds"] + r["assists"] for r in rows if r["is_home"] == is_home]
+        overall = [sum(r[c] for c in combo_cols) for r in rows]
+        split = [sum(r[c] for c in combo_cols) for r in rows if r["is_home"] == is_home]
     else:
         rows = conn.execute(
             f"SELECT is_home, {col} AS val FROM player_game_logs WHERE player_id = ? AND season = ?",

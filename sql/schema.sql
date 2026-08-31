@@ -139,6 +139,7 @@ SELECT
     pgl.steals,
     pgl.blocks,
     pgl.turnovers,
+    pgl.three_made,
     ROW_NUMBER() OVER (
         PARTITION BY pgl.player_id, pgl.season ORDER BY pgl.game_date DESC
     ) AS games_ago

@@ -18,8 +18,11 @@ calibration chart) — this README is the full technical reference.
 
 ## What it does
 
-Given a player, a stat (points, rebounds, assists, steals, blocks,
-or points+rebounds+assists), a line, and an opponent, it returns:
+Given a player, a stat, a line, and an opponent, it returns a
+probability estimate. Covers the FanDuel-style player prop markets:
+points, rebounds, assists, steals, blocks, turnovers, 3-pointers made,
+and the combo props (points+rebounds+assists, points+rebounds,
+points+assists, rebounds+assists, blocks+steals):
 
 - **A probability** the player goes over (or under) that line
 - **The matchup-adjusted expected value** and how it was derived
@@ -224,6 +227,29 @@ single player's props — a big night from one player and a rough one
 for a teammate (or a big defensive night from an opponent) are often
 correlated in real games, so treat the combined number as a rough
 estimate, not a precise joint probability.
+
+## Supported stats
+
+`PTS`, `REB`, `AST`, `STL`, `BLK`, `TOV`, `FG3M` (3-pointers made),
+and the combo props `PRA` (points+rebounds+assists), `PR`
+(points+rebounds), `PA` (points+assists), `RA` (rebounds+assists),
+and `STOCKS` (blocks+steals) — matching FanDuel's usual NBA player
+prop markets. Steals/blocks/turnovers aren't tracked positionally in
+this schema (see `v_team_position_defense` in Schema below), so their
+matchup adjustment is neutral (1.0x) rather than opponent-aware; a
+combo stat's matchup factor is the average of its components' factors
+(so STOCKS, being STL+BLK, is also neutral).
+
+**If you already have a database from before this feature** (i.e.
+`data/nba_props.db` existed before `TOV`/`FG3M`/the combo props were
+added), run this once — it rebuilds one view to expose a column that
+was already being fetched and stored but wasn't queryable yet, so no
+data is re-fetched or lost:
+```bash
+python3 scripts/migrate_add_view_columns.py
+```
+A database built fresh from `fetch_data.py` + `load_db.py` already
+has this and doesn't need it.
 
 ## Adding a new season (keeping your existing data)
 

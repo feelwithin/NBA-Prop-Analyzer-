@@ -90,7 +90,11 @@ def main():
     parser.add_argument("--recent-n", type=int, default=20, help="How many recent games to weight (default 20)")
     parser.add_argument("--season", help="e.g. 2025-26. Defaults to the most recent season loaded. Pass --list-seasons to see what's available.")
     parser.add_argument("--list-seasons", action="store_true", help="Print available seasons and exit")
-    parser.add_argument("--stat", help="Single-prop mode: stat name (PTS, REB, AST, STL, BLK, PRA)")
+    parser.add_argument(
+        "--stat",
+        help="Single-prop mode: stat name (PTS, REB, AST, STL, BLK, TOV, FG3M, "
+             "PRA, PR, PA, RA, STOCKS)",
+    )
     parser.add_argument("--line", type=float, help="Single-prop mode: the line, e.g. 30")
     parser.add_argument("--prop", action="append", default=[], help="Multi-prop mode: STAT:LINE, repeatable")
 
